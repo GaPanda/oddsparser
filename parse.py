@@ -1,17 +1,12 @@
 #!/usr/binenv python3
 
-import csv
-import time
-from datetime import datetime
-import urllib.request
+import csv, time, urllib.request
 from bs4 import BeautifulSoup
 
 BASE_URL1 = 'http://www.oddsportal.com/soccer/argentina/primera-b-nacional/'
 #BASE_URL = 'http://www.oddsportal.com/soccer/belarus/vysshaya-liga/'
 #BASE_URL = 'http://www.oddsportal.com/soccer/china/super-league/'
 BASE_URL = 'http://www.oddsportal.com'
-
-#print(datetime.datetime.fromtimestamp(int(time)).strftime('%Y-%m-%d %H:%M:%S')) Вывод времени нормальный
 
 def get_html(url): #Получение HTML кода страницы
 	
@@ -24,7 +19,7 @@ def parseLeagues(html): #Парсинг ссылок для лиг
 
 	soup = BeautifulSoup(html)
 	table = soup.find('div', id = 's_1')
-	li = table.find_all('li', class_ = 'tournament')
+	li = table.find_all('li', class_ = 'tournament') #Убрать Popular из списка!!!
 
 	for key in li:
 		league = key.find('a').get_text()
@@ -37,47 +32,59 @@ def parseLeagues(html): #Парсинг ссылок для лиг
 
 	return leagues
 
-
-def parseTomorrowMatches(html, todayDate): #Парсинг конкретной лиги
-	
-	matches = []
-
-	def hasNoClassTr(tag): #Возвращает строки не имеющие класса
-		return not tag.has_attr('class') and tag.name == 'tr'
-
-	def hasNoClassA(tag): #Возвращает строки не имеющие класса
-		return not tag.has_attr('class') and tag.name == 'a'
-
-	def checkEmpty(tag):
+def checkEmptyMatches(html):
+	def checkEmptyTable(tag):
 		return not tag.has_attr('class') and not tag.has_attr('xeid') and tag.name == 'tr'
 
 	soup = BeautifulSoup(html)
 	table = soup.find('table', class_ = 'table-main') # Общая таблица матчей
 	
-	check = table.find(checkEmpty)
-	
+	check = table.find(checkEmptyTable)
+
 	if check != None:
 		return 1
 	else:
-		countryAndLeague = table.find('tr', class_='dark center').find_all('a') # Нахождение тегов а с лигой и страной
-		country = countryAndLeague[1].get_text().strip()
-		league = countryAndLeague[2].get_text().strip() #Лига, вроде не надо
+		return 0
 
-		rows1 = table.find_all(hasNoClassTr)
-		rows2 = table.find_all('tr', class_ = 'odd') # поиск матчей
-		rows = rows1 + rows2
+def findResultMatchesForTeam(nodeTeam):
 
-		for row in rows:
-			matchTimeTd = row.find('td', class_= 'table-time')
+	def hasNoClassA(tag): #Возвращает строки не имеющие класса
+		return not tag.has_attr('class') and tag.name == 'a'
+
+	def checkEmptyTable(tag):
+		return tag.has_attr('class') and tag.has_attr('xeid') and tag.name == 'tr'
+
+	def checkTableForTeams(tag): #Проверка на наличие таблицы с командами
+		if tag != None:
+			return True
+		else:
+			return False
+
+	def createURL(teamName): #Создание URL ссылки из названия клуба
+		URL = 'http://www.oddsportal.com/search/results/'
+		TYPESPORT = '/soccer/'
+		splitTeamName = teamName.split()
+		urlTeamName = URL + '%20'.join(splitTeamName) + TYPESPORT
+		return urlTeamName
+
+	def findMatches(html): #Поиск 10 предыдущих матчей команды
+		
+		historyMatches = []
+
+		soup = BeautifulSoup(html)
+		tableWithHistoryMatches = soup.find('table', class_ = 'table-main')
+		rows = tableWithHistoryMatches.find_all(checkEmptyTable)
+		
+		for i in range(1,10):
+			matchTimeTd = rows[i].find('td', class_= 'table-time')
 			matchTime = matchTimeTd['class'][2][1:11]
-			#print(time.gmtime(int(matchTime)))
-			#teams = row.find('td', class_= 'name table-participant').get_text().split()
-			teams = row.find('td', class_= 'name table-participant').find(hasNoClassA).get_text().split()
+			matchLink = rows[i].find('td', class_= 'name table-participant').a.get('href')
+			teams = rows[i].find('td', class_= 'name table-participant').find(hasNoClassA).get_text().split()
 			A = []
 			B = []
 			i = 0
-			position = 0
-			
+
+			position = 0 #Индекс тире в строке		
 			for key in teams:
 				if position == 0 and teams[i] != '-':
 					A.append(teams[i])
@@ -89,33 +96,132 @@ def parseTomorrowMatches(html, todayDate): #Парсинг конкретной 
 
 			teamA = ' '.join(A)
 			teamB = ' '.join(B)
+
+			historyMatches.append({
+				'Time': matchTime,
+				'Link': BASE_URL + matchLink,
+				'Team1': teamA,
+				'Team2': teamB,
+				})
+
+		return historyMatches
+
+	teams = []
+	historyMatches = []
+
+	URL = createURL(nodeTeam[0]['Team'])
+	soup = BeautifulSoup(get_html(URL))
+
+	tableWithTeams = soup.find('table', class_ = 'sortable table-main')
+
+	if checkTableForTeams(tableWithTeams) == True:
+		rows = tableWithTeams.find_all('tr')[1:]
+		for row in rows:
+			cols = row.find_all('td')
+			teams.append({
+				'Team': cols[0].get_text().strip(),
+				'Link': cols[0].a.get('href').strip(),
+				'Country': cols[2].get_text().strip(),
+				'Sport': cols[1].get_text().strip()
+				})
+		for team in teams:
+			if team['Team'] == nodeTeam[0]['Team'] and team['Country'] == nodeTeam[0]['Country'] and team['Sport'] == nodeTeam[0]['Sport']:
+				historyMatches = findMatches(get_html(BASE_URL + team['Link']))
+	else:
+		historyMatches = findMatches(get_html(URL))
+	print('Предыдущие матчи найдены!')
+	return historyMatches
+
+
+
+def parseTomorrowMatches(html, todayDate): #Парсинг конкретной лиги
+	
+	matches = []
+
+	def hasNoClassTr(tag): #Возвращает строки не имеющие класса
+		return not tag.has_attr('class') and tag.name == 'tr'
+
+	def hasNoClassA(tag): #Возвращает строки не имеющие класса
+		return not tag.has_attr('class') and tag.name == 'a'
+
+
+	soup = BeautifulSoup(html)
+	table = soup.find('table', class_ = 'table-main') # Общая таблица матчей
+	
+
+	countryAndLeague = table.find('tr', class_='dark center').find_all('a') # Нахождение тегов а с лигой и страной
+	country = countryAndLeague[1].get_text().strip()
+	league = countryAndLeague[2].get_text().strip() #Лига, вроде не надо
+
+	rows1 = table.find_all(hasNoClassTr)
+	rows2 = table.find_all('tr', class_ = 'odd') # поиск матчей
+	rows = rows1 + rows2
+
+	for row in rows:
+		matchTimeTd = row.find('td', class_= 'table-time')
+		matchTime = matchTimeTd['class'][2][1:11]
+		teams = row.find('td', class_= 'name table-participant').find(hasNoClassA).get_text().split()
+		A = []
+		B = []
+		i = 0
+
+		position = 0 #Индекс тире в строке		
+		for key in teams:
+			if position == 0 and teams[i] != '-':
+				A.append(teams[i])
+			elif teams[i] == '-':
+				position = i
+			elif position != 0:
+				B.append(teams[i])
+			i += 1	
+
+		teamA = ' '.join(A)
+		teamB = ' '.join(B)
 			
-			matchTimeFormat = time.gmtime(int(matchTime)) # Преобразование времени в вид кортежа
+		matchTimeFormat = time.gmtime(int(matchTime)) # Преобразование времени в вид кортежа
 
-			if matchTimeFormat[7] == todayDate[7] + 1: #Костыль
-				matches.append({
-					'Time': matchTime,
-					'Team1': teamA,
-					'Team2': teamB,
-					'Country': country,
-					'League': league,
-					'Sport' : 'Soccer'
-					})
-			else:
-				continue
+		if matchTimeFormat[7] == todayDate[7] + 1: #Не всегда будет работать, доделать!!!
 
-		return matches
+			matches.append({
+				'Time': matchTime,
+				'Team1': teamA,
+				'Team2': teamB,
+				'Country': country,
+				'League': league,
+				'Sport' : 'Soccer',
+				'MatchesTeam1': [],
+				'MatchesTeam2': []
+				})
+		else:
+			continue
+
+	return matches
 
 def save(matches, path):
 	with open(path, 'w') as cvsfile:
 		writer = csv.writer(cvsfile)
 
 		writer.writerow(('Дата', 'Команда1', 'Команда2', 'Лига', 'Страна', 'Спорт'))
-
-		writer.writerows(
-				(match['Time'], match['Team1'], match['Team2'], match['League'], match['Country'], match['Sport']) for match in matches
-			)	
-
+		
+		for match in matches:
+			MatchesTeam1 = []
+			MatchesTeam1 = match['MatchesTeam1']
+			MatchesTeam2 = []
+			MatchesTeam2 = match['MatchesTeam2']
+			
+			writer.writerow(
+				(time.ctime(int(match['Time'])), match['Team1'], match['Team2'],\
+				 match['League'], match['Country'], match['Sport'])
+			)
+			for key in range(0,9):	
+				writer.writerow(
+					(time.ctime(int(MatchesTeam1[key]['Time'])),\
+					(MatchesTeam1[key]['Team1'] + ' - ' + MatchesTeam1[key]['Team2']),\
+					time.ctime(int(MatchesTeam2[key]['Time'])),\
+					MatchesTeam2[key]['Team1'] + ' - '+ MatchesTeam2[key]['Team2'])
+				)
+			
+			
 def main():
 	leagues = []
 	matches = []
@@ -126,19 +232,41 @@ def main():
 	
 	#Штука для тестов
 	#matches.extend(parseTomorrowMatches(get_html(BASE_URL1), structTime))
+
 	#print(matches)
 	
+
 	#Рабочая штука
 	for key in leagues:
-		print(key['link'])
-		if parseTomorrowMatches(get_html(key['link']),structTime) == 1: # вот тут надо изменить!!!!!!
+		print('Парсится лига: ', key['title'])
+		if checkEmptyMatches(get_html(key['link'])) == 1:
 			continue
 		else:
 			matches.extend(parseTomorrowMatches(get_html(key['link']),structTime))
+			print('Find matches...OK')
+	
+	print('Всего найдено: ', len(matches))
+	
+	i = 1
+	for match in matches:
+		tempMatch1 = [{
+		'Team': match['Team1'],
+		'Sport': match['Sport'],
+		'Country': match['Country']
+		}]
+		tempMatch2 = [{
+		'Team': match['Team2'],
+		'Sport': match['Sport'],
+		'Country': match['Country']
+		}]
+		match['MatchesTeam1'] = findResultMatchesForTeam(tempMatch1)
+		match['MatchesTeam2'] = findResultMatchesForTeam(tempMatch2)
+		print('Матч номер ', i, ', OK!')
+		i += 1
 
-	print(matches)
-	#print('Saving...')
-	#save(matches, 'matches.csv')
+
+	print('Saving...')
+	save(matches, 'matches.csv')
 
 if __name__ == '__main__':
 	main()
