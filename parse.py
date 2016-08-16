@@ -1,13 +1,10 @@
 #!/usr/binenv python3
 
-import csv, time, urllib.request
+import csv, time, urllib.request, sys
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.common.action_chains import ActionChains
 
-#BASE_URL1 = 'http://www.oddsportal.com/soccer/argentina/primera-b-nacional/'
-#BASE_URL = 'http://www.oddsportal.com/soccer/belarus/vysshaya-liga/'
-#BASE_URL = 'http://www.oddsportal.com/soccer/china/super-league/'
 BASE_URL = 'http://www.oddsportal.com'
 
 def get_html(url): #Получение HTML кода страницы
@@ -155,8 +152,6 @@ def findResultMatchesForTeam(nodeTeam):
 
 	return historyMatches
 
-
-
 def parseTomorrowMatches(html, todayDate): #Парсинг конкретной лиги
 	
 	matches = []
@@ -257,9 +252,6 @@ def deleteMatches(matches):
 def openConnection(driver):
 	driver.set_window_size(1024, 768) # optional
 	driver.get('http://www.oddsportal.com')
-
-
-def connection(driver):
 	connectionError = ''
 	try:
 		username = driver.find_element_by_name('login-username')
@@ -269,6 +261,9 @@ def connection(driver):
 		driver.find_element_by_name('login-submit').click()
 	except connectionError:
 		print('Connection error')
+
+def closeConnection(driver):
+	driver.close()
 
 def parsePage(driver, page):
 
@@ -284,14 +279,9 @@ def parsePage(driver, page):
 				result = 4
 			elif team1 == team2:
 				result = 3
-			#print(team1, ':', team2)
 		else:
 			result = 3
-			#print('Ups')
 		return result
-	
-	def deleteRatious():
-		pass
 
 	driver.get(page)
 	result = driver.find_element_by_css_selector('p.result').text[13:]
@@ -316,11 +306,6 @@ def parsePage(driver, page):
 		else:
 			continue
 	return ratious
-	
-
-def closeConnection(driver):	
-	driver.close()
-
 
 def printMatches(matches):
 	i = 1
@@ -341,8 +326,6 @@ def ratiousSum(ratious):
 			countM += 1
 		if ratio == 'Б':
 			countB += 1
-	print(countB)
-	print(countM)
 	if countM < countB:
 		finalResult = 'Б'
 	elif countM > countB:
@@ -360,8 +343,6 @@ def main():
 
 	leagues = parseLeagues(get_html(BASE_URL))
 	leagues = formatLeagues(leagues)
-
-	#connection(get_html(BASE_URL)) #Логин и пароль
 
 	for key in leagues:
 		print('Parsing league: ', key['title'], end = ' / ')
@@ -409,8 +390,7 @@ def main():
 
 	driver = webdriver.PhantomJS() # or add to your PATH
 	openConnection(driver)
-	connection(driver)
-	
+
 	count = 0
 	for match in matches:
 		for i in range(0,10):
@@ -423,27 +403,21 @@ def main():
 				match['MatchesTeam2'][i]['Ratious'] = ratioTeamB
 				if len(match['MatchesTeam1'][i]['Ratious']) < 10 or len(match['MatchesTeam2'][i]['Ratious']) < 10:
 					match['Status'] = False
-					print('Upps!')
 					break
 				else:
-					print('Match number:', count+1, 'Team1, match:', i+1)
-					print(ratioTeamA)
 					match['MatchesTeam1'][i]['Ratio'] = ratiousSum(ratioTeamA)
-					print('Match number:', count+1, 'Team2, match:', i+1)
-					print(ratioTeamB)
 					match['MatchesTeam2'][i]['Ratio'] = ratiousSum(ratioTeamB)
 			except:
-				print('Some error with ratio!')
 				match['Status'] = False
 				break
 			else:
-				print('All is good!')
+				print('Parsing ratious %d%%' % (count / len(matches) * 100))
 		count += 1
 	closeConnection(driver)
 	
 	matches = deleteMatches(matches)
 	
-	print('Saving...')
+	print('\nSaving...')
 	
 	save(matches, 'matches.csv')
 
