@@ -6,6 +6,7 @@ from time import time
 from modules.get_html import get_page
 from modules.class_match import Match
 from bs4 import BeautifulSoup
+from argparse import ArgumentParser
 
 BASE_URL = 'http://www.oddsportal.com'
 
@@ -115,8 +116,11 @@ def print_history_matches(matches_home_team, matches_guest_team):
         raise Exception('Something went wrong!')		
 
 def main():
-    number_of_history_matches = 10 #Number of passed matches
-
+    ap = ArgumentParser()
+    ap.add_argument("-n", "--number", default=5)
+    args = vars(ap.parse_args())
+    number_of_history_matches = int(args["number"])
+    print("[INFO] Количество матчей из истории:", number_of_history_matches)
     start_time = time() # Настоящее время в секундах
     phantomjs_path = r"C:\Users\pingv\Documents\GitHub\oddsparser\phantomjs-2.1.1-windows\bin\phantomjs.exe"
     dcap = dict(DesiredCapabilities.PHANTOMJS)
