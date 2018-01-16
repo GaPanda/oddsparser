@@ -1,34 +1,48 @@
 #-*- coding: utf-8 -*-
 
-from selenium import webdriver
-from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
+import pickle
 from time import time
-from modules.get_html import get_page
-from modules.class_match import Match
-from bs4 import BeautifulSoup
 from argparse import ArgumentParser
+from bs4 import BeautifulSoup
+from modules.clmatch import get_page
+from modules.clmatch import Match
+from modules.clratio import MatchRatio
 
-BASE_URL = 'http://www.oddsportal.com'
+class Process:
+    def __init__(self, arg):
+        super(Process, self).__init__()
+        self.BASE_URL = 'http://www.oddsportal.com'
 
-def open_connection(driver):
-    print("[INFO] Загрузка страницы oddsportal.com.")
-    driver.get('http://www.oddsportal.com/login')
-    driver.set_window_size(1024, 768)
 
-def logging_in(driver):
-    '''Login in oddsportal.com'''
-    try:
-        print("[INFO] Вход в личный кабинет.")
-        username = driver.find_element_by_name('login-username')
-        password = driver.find_element_by_name('login-password')
-        username.send_keys('myparsebot')
-        password.send_keys('79213242520')
-        password.send_keys('\n')
-    except:
-        raise Exception('You may be already login in!')
+BASE_URL =
 
-def close_connection(driver):
-    driver.close()
+    def try_to_connect(self):
+        try:
+            self.open_connection()
+            self.logging_in(self.login, self.passw)
+            print("[INFO] Успешный вход!")
+        except Exception as err:
+            print("[WARNING]", err.args[0])
+
+    def open_connection(self):
+        print("[INFO] Загрузка страницы oddsportal.com.")
+        self.driver.get('http://www.oddsportal.com/login')
+        self.driver.set_window_size(1024, 768)
+
+    def logging_in(self, login, passw):
+        '''Login in oddsportal.com'''
+        try:
+            print("[INFO] Вход в личный кабинет.")
+            username = self.driver.find_element_by_name('login-username')
+            password = self.driver.find_element_by_name('login-password')
+            username.send_keys(login)
+            password.send_keys(passw)
+            password.send_keys('\n')
+        except:
+            raise Exception('You may be already login in!')
+
+    def close_connection(self):
+        self.driver.close()
 
 def check_empty_table(tag):
     return tag.has_attr('class') and tag.has_attr('xeid') and tag.name == 'tr'
@@ -45,7 +59,7 @@ def check_for_n_matches(tag, number_of_history_matches):
     if(len(tag)) < 10:
         return True
 
-def find_matches(html, number_of_history_matches): #Поиск 10 предыдущих матчей команды	
+def find_matches(html, number_of_history_matches): #Поиск 10 предыдущих матчей команды
     history_matches = []
     soup = BeautifulSoup(html, 'lxml')
     table_with_matches = soup.find('table', class_='table-main')
@@ -89,17 +103,27 @@ def find_table_of_history_matches(team_url, team_sport, team_country, team_name,
         history_matches = find_matches(get_page(team_url), number_of_history_matches)
     return history_matches
 
-def parse_history_matches(matches, driver):
+def thread_parse_history_matches(matches, phantomjs_path, login, passw):
     parsed_matches = []
-    count = 0
     for key in matches:
-        count += 1
-        print('Матч №', count, ': ')
-        match_node = Match(key['Link'], driver)
-        match_node.parseMatch()
-        match_node.shortShowMatch()
-        parsed_matches.append(match_node)
+        parsed_block = []
+        match_node = Match(key['Link'])
+        match_ratio = MatchRatio(key['Link'], phantomjs_path, login, passw)
+        parsed_block.append(match_node)
+        parsed_block.append(match_ratio)
+        parsed_matches.append(parsed_block)
+        match_node.start()
+        match_ratio.start()
     return parsed_matches
+
+def thread_matches_join(parsed_matches):
+    for key in parsed_matches:
+        key[0].join()
+        key[1].join()
+        key[0].short_show_match()
+        key[0].add_ratio(key[1])
+        key[0].show_match()
+        key[0].show_ratio()
 
 def print_history_matches(matches_home_team, matches_guest_team):
 	#ERROR
@@ -113,35 +137,38 @@ def print_history_matches(matches_home_team, matches_guest_team):
             matches_guest_team[i].shortShowMatch2()
             print('\n')
     else:
-        raise Exception('Something went wrong!')		
+        raise Exception('Something went wrong!')
 
 def main():
-    ap = ArgumentParser()
-    ap.add_argument("-n", "--number", default=5)
-    args = vars(ap.parse_args())
+    arg_parser = ArgumentParser()
+    arg_parser.add_argument("-n", "--number", default=5)
+    arg_parser.add_argument("-l", "--login", default="myparsebot")
+    arg_parser.add_argument("-p", "--password", default="79213242520")
+    args = vars(arg_parser.parse_args())
     number_of_history_matches = int(args["number"])
+    login = str(args["login"])
+    passw = str(args["password"])
+
     print("[INFO] Количество матчей из истории:", number_of_history_matches)
+    print("[INFO] Логин:", login, "Пароль:", passw)
     start_time = time() # Настоящее время в секундах
+
     phantomjs_path = r"C:\Users\pingv\Documents\GitHub\oddsparser\phantomjs-2.1.1-windows\bin\phantomjs.exe"
     dcap = dict(DesiredCapabilities.PHANTOMJS)
     dcap["phantomjs.page.settings.userAgent"] = (
-        "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:31.0) Gecko/20100101 Firefox/31.0"
+         "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:31.0) Gecko/20100101 Firefox/31.0"
     )
+    browser = webdriver.PhantomJS(executable_path=phantomjs,
+                                  desired_capabilities=dcap, service_args=["--load-images=no"])
+
     matches_home_team = []
     matches_guest_team = []
     match_url = input('[INFO] Введите URL матча: ')
 
-    driver = webdriver.PhantomJS(executable_path=phantomjs_path,
-                                 desired_capabilities=dcap, service_args=["--load-images=no"])
-    try:
-        open_connection(driver)
-        logging_in(driver)
-    except Exception as err:
-        print("[WARNING]", err.args[0])
-
-    match_node = Match(match_url, driver)
-    match_node.parseMatch()
-    match_node.showMatch()
+    match_node = Match(match_url)
+    match_node.start()
+    match_ratio = MatchRatio(match_url, browser, login, passw)
+    match_ratio.start()
 
     matches_home_team = find_table_of_history_matches(match_node.teamHomeURL, match_node.sport,
                                                       match_node.country, match_node.teamHome,
@@ -149,14 +176,20 @@ def main():
     matches_guest_team = find_table_of_history_matches(match_node.teamGuestURL, match_node.sport,
                                                        match_node.country, match_node.teamGuest,
                                                        number_of_history_matches)
-    if (matches_home_team is not False) & (matches_guest_team is not False) :
-        print('\n------------------------\nМатчи домашней команды :\n------------------------')
-        matches_home_team = parse_history_matches(matches_home_team, driver)
-        print('\n------------------------\nМатчи гостевой команды :\n------------------------')
-        matches_guest_team = parse_history_matches(matches_guest_team, driver)
+
+    match_node.join()
+    match_ratio.join()
+    match_node.add_ratio(match_ratio)
+    match_node.show_match()
+    match_node.show_ratio()
+
+    if (matches_home_team is not False) & (matches_guest_team is not False):
+        home_m = thread_parse_history_matches(matches_home_team, browser, login, passw)
+        guest_m = thread_parse_history_matches(matches_guest_team, browser, login, passw)
+        thread_matches_join(home_m)
+        thread_matches_join(guest_m)
     else:
         print("[ERROR] Не найдено", number_of_history_matches, "матчей в таблице Results у одной из команд.")
-    close_connection(driver)
 
     end_time = time() - start_time
     print('[INFO] Программа завершена за: ', end_time/60, ' мин.')

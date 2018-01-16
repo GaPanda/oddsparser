@@ -1,1 +1,1 @@
-python parsematch.py -n 10
+python run.py -n 5
