@@ -3,53 +3,16 @@
 from threading import Thread
 from bs4 import BeautifulSoup
 from selenium.webdriver.common.action_chains import ActionChains
-from selenium import webdriver
-from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
+from clbookmaker import Bookmaker
 
 class MatchRatio(Thread):
-
-    def __init__(self, match_url, browser, login, passw):
+    def __init__(self, match_url, browser):
         super(MatchRatio, self).__init__()
         self.match_url = match_url
         self.bookmakers = []
         self.login = login
         self.passw = passw
         self.driver = browser
-
-    def isfloat(self, value):
-        try:
-            float(value)
-            return True
-        except:
-            return False
-
-    def try_to_connect(self):
-        try:
-            self.open_connection()
-            self.logging_in(self.login, self.passw)
-            print("[INFO] Успешный вход!")
-        except Exception as err:
-            print("[WARNING]", err.args[0])
-
-    def open_connection(self):
-        print("[INFO] Загрузка страницы oddsportal.com.")
-        self.driver.get('http://www.oddsportal.com/login')
-        self.driver.set_window_size(1024, 768)
-
-    def logging_in(self, login, passw):
-        '''Login in oddsportal.com'''
-        try:
-            print("[INFO] Вход в личный кабинет.")
-            username = self.driver.find_element_by_name('login-username')
-            password = self.driver.find_element_by_name('login-password')
-            username.send_keys(login)
-            password.send_keys(passw)
-            password.send_keys('\n')
-        except:
-            raise Exception('You may be already login in!')
-
-    def close_connection(self):
-        self.driver.close()
 
     def run(self): #Нахождение букмекерский контор и их коэффициентов
         self.try_to_connect()
@@ -123,34 +86,3 @@ class MatchRatio(Thread):
     def print_ratious(self):
         for key in self.bookmakers:
             key.printBookmaker()
-
-class Bookmaker:
-    def __init__(self, name_bookmaker, ratio_1, ratio_2):
-        self.name_bookmaker = name_bookmaker
-        self.ratio_1 = ratio_1
-        self.ratio_2 = ratio_2
-
-    def printBookmaker(self):
-        print('Bookmaker: ', self.name_bookmaker)
-        print('1: ', self.ratio_1)
-        print('2: ', self.ratio_2)
-
-    def check_ratio_errors(self):
-        if self.ratio_1 == 'Higher' and self.ratio_2 == 'Higher':
-            return False
-        else:
-            return True
-
-    def returnRatio(self, result):
-        if result == '1':
-            if self.check_ratio_errors() and (self.ratio_1 == 'Higher' or self.ratio_1 == 'Lower'):
-                return self.ratio_1
-            else:
-                return
-        elif result == '2':
-            if self.check_ratio_errors() and (self.ratio_2 == 'Higher' or self.ratio_2 == 'Lower'):
-                return self.ratio_2
-            else:
-                return
-        else:
-            print('Error with result!')
