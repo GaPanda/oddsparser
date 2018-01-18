@@ -1,12 +1,11 @@
 #-*- coding: utf-8 -*-
 
-from threading import Thread
 from bs4 import BeautifulSoup
 from selenium.webdriver.common.action_chains import ActionChains
-from clbookmaker import Bookmaker
+from modules.clbookmaker import Bookmaker
 
-class MatchRatio(Thread):
-    def __init__(self, match_url, browser):
+class MatchRatio:
+    def __init__(self, match_url, browser, handle):
         super(MatchRatio, self).__init__()
         self.match_url = match_url
         self.bookmakers = []
@@ -14,9 +13,8 @@ class MatchRatio(Thread):
         self.passw = passw
         self.driver = browser
 
+
     def run(self): #Нахождение букмекерский контор и их коэффициентов
-        self.try_to_connect()
-        self.driver.get(self.match_url)
         rows = self.driver.find_elements_by_class_name('lo')
         self.len_rows = len(rows)
         for row in rows:
@@ -27,7 +25,6 @@ class MatchRatio(Thread):
             ratio_1 = self.ratious(self.driver, elements[1])
             ratio_2 = self.ratious(self.driver, elements[2])
             self.bookmakers.append(Bookmaker(name_bookmaker, ratio_1, ratio_2))
-        self.close_connection()
 
     def ratious(self, driver, element): #Обработка разницы начального и конечного коэффициента
         ratio = ''

@@ -1,3 +1,5 @@
+#-*- coding: utf-8 -*-
+
 class Bookmaker:
     def __init__(self, name_bookmaker, ratio_1, ratio_2):
         self.name_bookmaker = name_bookmaker

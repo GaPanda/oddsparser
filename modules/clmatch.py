@@ -60,10 +60,10 @@ class Match(Thread):
 
         match_teams = content.find('h1').get_text()
         match_teams = self.formating_teams(match_teams)
-        self.teamHome = match_teams[0].strip() # home team
-        self.teamGuest = match_teams[1].strip() # guest team
-        self.teamHomeURL = self.create_url(self.teamHome, self.sport)
-        self.teamGuestURL = self.create_url(self.teamGuest, self.sport)
+        self.team_home = match_teams[0].strip() # home team
+        self.team_guest = match_teams[1].strip() # guest team
+        self.team_home_url = self.create_url(self.team_home, self.sport)
+        self.team_guest_url = self.create_url(self.team_guest, self.sport)
         self.match_time = gmtime(int(content.find('p')['class'][2][1:11])) # match time
 
     def count_ratio(self):

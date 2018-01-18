@@ -1,68 +1,105 @@
 #-*- coding: utf-8 -*-
 
-import pickle
-from time import time
-from argparse import ArgumentParser
+from threading import Thread
 from bs4 import BeautifulSoup
 from modules.clmatch import get_page
 from modules.clmatch import Match
 from modules.clratio import MatchRatio
-from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
+from modules.clsettings import Settings
 from selenium import webdriver
+from selenium.common.exceptions import NoSuchElementException, UnableToSetCookieException
 
-class Process:
-    def __init__(self, arg, phantomjs_path,
-                 dcap, login, passw,
-                 number_of_history_matches, match_url):
+
+class Process(Thread):
+    def __init__(self, phantomjs_path, dcap,
+                 login, passw, number_of_history_matches):
         super(Process, self).__init__()
-        self.match_url = match_url
-        self.phantomjs = phantomjs_path
+        self.base_url = 'http://www.oddsportal.com'
+        self.browser = webdriver.PhantomJS(executable_path = phantomjs_path,
+                                           desired_capabilities = dcap,
+                                           service_args = ["--load-images=no",
+                                                           "--ssl-protocol=any",
+                                                           "--ignore-ssl-errors=true"])
         self.login = login
         self.passw = passw
         self.number_of_history_matches = number_of_history_matches
-        self.base_url = 'http://www.oddsportal.com'
-        self.browser = webdriver.PhantomJS(executable_path=phantomjs,
-                                           desired_capabilities=dcap,
-                                           service_args=["--load-images=no"])
         self.matches_home_team = []
         self.matches_guest_team = []
 
-    def try_to_connect(self):
+    def try_to_connect(self, cookies):
         try:
-            self.open_connection()
-            self.logging_in(self.login, self.passw)
-            print("[INFO] Успешный вход!")
-        except Exception as err:
-            print("[WARNING]", err.args[0])
+            print("[INFO] Проверка подключения к oddsportal.com")
+            self.open_connection(cookies)
+            result = self.check_connection()
+            if result is True:
+                self.check_loggin_in()
+            else:
+                raise NoSuchElementException
+        except NoSuchElementException:
+            raise NoSuchElementException
+        except NameError:
+            self.logging_in()
 
-    def open_connection(self):
-        print("[INFO] Загрузка страницы oddsportal.com.")
-        self.driver.get(self.base_url + '/login')
-        self.driver.set_window_size(1024, 768)
+    def open_connection(self, cookies):
+        try:
+            self.browser.get(self.base_url)
+            if cookies is not None:
+                for cookie in cookies:
+                    #If I dont make sure the domain of the cookie starts with a . i get the following error:
+                    #WebDriverException: Message: {"errorMessage":"Unable to set Cookie", ...
+                    if cookie['domain'][0] != '.':
+                        cookie['domain'] = '.' + cookie['domain']
+                    self.browser.add_cookie(cookie)
+            self.browser.get(self.base_url)
+            self.browser.set_window_size(1024, 768)
+        except UnableToSetCookieException:
+            self.browser.get(self.base_url)
 
     def logging_in(self):
+        print("[INFO] Вход в личный кабинет.")
+        self.browser.get(self.base_url + '/login')
+        username = self.browser.find_element_by_name('login-username')
+        password = self.browser.find_element_by_name('login-password')
+        username.send_keys(self.login)
+        password.send_keys(self.passw)
+        password.send_keys('\n')
+        print("[INFO] Успешный вход!")
+
+    def check_connection(self):
         try:
-            print("[INFO] Вход в личный кабинет.")
-            username = self.driver.find_element_by_name('login-username')
-            password = self.driver.find_element_by_name('login-password')
-            username.send_keys(self.login)
-            password.send_keys(self.passw)
-            password.send_keys('\n')
+            self.browser.find_element_by_xpath('//*[@id="user-header-r2"]')
+            return True
         except:
-            raise Exception('You may be already login in!')
+            return False
+
+    def check_loggin_in(self):
+        try:
+            login = self.browser.find_element_by_xpath('//*[@id="user-header-r2"]/ul/li[5]/a')
+            if login.text.strip() != self.login:
+                #Тут поидее надо написать вход под другим логином, но мне влом)
+                print("Logins are not equal :)")
+                return False
+            else:
+                print("[INFO] Успешный вход из cookies!")
+                return True
+        except:
+            raise NameError
+
+    def return_cookies(self):
+        self.browser.get(self.base_url)
+        cookies = self.browser.get_cookies()
+        return cookies
 
     def close_connection(self):
-        self.driver.close()
+        self.browser.close()
 
     def check_empty_table(self, tag):
         return tag.has_attr('class') and tag.has_attr('xeid') and tag.name == 'tr'
 
     def check_tables_for_teams(self, tag): #Проверка на наличие таблицы с командами
         print("[INFO] Проверка на наличие таблицы с командами.")
-        if tag != None:
-            return True
-        else:
-            return False
+        if tag != None: return True
+        else: return False
 
     def check_for_n_matches(self, tag):
         print("[INFO] Проверка количества матчей в таблице Results.")
@@ -97,13 +134,13 @@ class Process:
             for row in rows:
                 cols = row.find_all('td')
                 teams.append({
-                    'Team': cols[0].get_text().strip(),
-                    'Link': cols[0].a.get('href').strip(),
-                    'Country': cols[2].get_text().strip(),
-                    'Sport': cols[1].get_text().strip(),
+                    'team': cols[0].get_text().strip(),
+                    'link': cols[0].a.get('href').strip(),
+                    'country': cols[2].get_text().strip(),
+                    'sport': cols[1].get_text().strip(),
                     })
             for team in teams:
-                if team['Team'] == team_name and team['Country'] == team_country and team['Sport'] == team_sport:
+                if team['team'] is team_name and team['country'] is team_country and team['sport'] is team_sport:
                     history_matches = find_matches(get_page(base_url + team['Link']))
                     break
                 else:
@@ -128,7 +165,7 @@ class Process:
             parsed_matches.append(parsed_block)
             match_node.start()
             match_ratio.start()
-    return parsed_matches
+            return parsed_matches
 
     def thread_matches_join(parsed_matches):
         for key in parsed_matches:
@@ -139,16 +176,17 @@ class Process:
             key[0].show_match()
             key[0].show_ratio()
 
-    def run(self):
-        self.match_node = Match(match_url)
+    def run(self, match_url):
+        self.match_url = match_url
+        self.match_node = Match(self.match_url)
         self.match_node.start()
-        match_ratio = MatchRatio(match_url, browser, login, passw)
+        match_ratio = MatchRatio(match_url, self.browser, login, passw)
         match_ratio.start()
-        matches_home_team = self.find_table_of_history_matches(match_node.teamHomeURL, match_node.sport,
-                                                          match_node.country, match_node.teamHome,
+        matches_home_team = self.find_table_of_history_matches(match_node.team_home_url, match_node.sport,
+                                                          match_node.country, match_node.team_home,
                                                           number_of_history_matches)
-        matches_guest_team = self.find_table_of_history_matches(match_node.teamGuestURL, match_node.sport,
-                                                           match_node.country, match_node.teamGuest,
+        matches_guest_team = self.find_table_of_history_matches(match_node.team_guest_url, match_node.sport,
+                                                           match_node.country, match_node.team_guest,
                                                            number_of_history_matches)
         self.match_node.join()
         match_ratio.join()
@@ -163,41 +201,28 @@ class Process:
             thread_matches_join(guest_m)
         else:
             print("[ERROR] Не найдено", number_of_history_matches, "матчей в таблице Results у одной из команд.")
+        #try:
+        #    print('Finnaly:')
+        #    print_history_matches(matches_home_team, matches_guest_team)
+        #except Exception as err:
+        #    print('[ERROR]', err.args[0])
 
 
 def main():
-    arg_parser = ArgumentParser()
-    arg_parser.add_argument("-n", "--number", default=5)
-    arg_parser.add_argument("-l", "--login", default="myparsebot")
-    arg_parser.add_argument("-p", "--password", default="79213242520")
-    args = vars(arg_parser.parse_args())
-    number_of_history_matches = int(args["number"])
-    login = str(args["login"])
-    passw = str(args["password"])
-
-    print("[INFO] Количество матчей из истории:", number_of_history_matches)
-    print("[INFO] Логин:", login, "Пароль:", passw)
-    start_time = time() # Настоящее время в секундах
-
-    phantomjs_path = r"C:\Users\pingv\Documents\GitHub\oddsparser\phantomjs-2.1.1-windows\bin\phantomjs.exe"
-    dcap = dict(DesiredCapabilities.PHANTOMJS)
-    dcap["phantomjs.page.settings.userAgent"] = (
-         "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:31.0) Gecko/20100101 Firefox/31.0"
-    )
-
-    match_url = input('[INFO] Введите URL матча: ')
-
-    process = Process(phantomjs_path, dcap, login,
-                      passw, number_of_history_matches, match_url)
-    process.run()
-
-    end_time = time() - start_time
-    print('[INFO] Программа завершена за: ', end_time/60, ' мин.')
-    #try:
-    #    print('Finnaly:')
-    #    print_history_matches(matches_home_team, matches_guest_team)
-    #except Exception as err:
-    #    print('[ERROR]', err.args[0])
+    settings = Settings()
+    settings.arg_parse()
+    settings.dcap_init()
+    process = Process(settings.phanjs_path, settings.dcap,
+                      settings.login, settings.passw,
+                      settings.number_of_history_matches)
+    try:
+        process.try_to_connect(settings.load_cookies())
+        #match_url = input('[INFO] Введите URL матча: ')
+        #process.run(match_url)
+        settings.save_cookies(process.return_cookies())
+        settings.time_count()
+    except NoSuchElementException:
+        print("[ERROR] Нету доступа к oddsportal, проверь VPN!")
 
 if __name__ == '__main__':
     main()
