@@ -1,3 +1,4 @@
 
 *.pyc
-ghostdriver.log
+*.pkl
+*.log
