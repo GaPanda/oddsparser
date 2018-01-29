@@ -1,10 +1,10 @@
 class Bookmaker:
     def __init__(self, name_bookmaker, ratio_1, ratio_2):
-        self.name_bookmaker = name_bookmaker
+        self.id_bookmaker = id_bookmaker
         self.ratio_1 = ratio_1
         self.ratio_2 = ratio_2
 
-    def printBookmaker(self):
+    def print_bookmaker(self):
         print('Bookmaker: ', self.name_bookmaker)
         print('1: ', self.ratio_1)
         print('2: ', self.ratio_2)
@@ -15,7 +15,7 @@ class Bookmaker:
         else:
             return True
 
-    def returnRatio(self, result):
+    def return_ratio(self, result):
         if result == '1':
             if self.check_ratio_errors() and (self.ratio_1 == 'Higher' or self.ratio_1 == 'Lower'):
                 return self.ratio_1
