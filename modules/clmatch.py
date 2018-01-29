@@ -2,24 +2,20 @@
 
 import re
 from threading import Thread
-from urllib.request import urlopen
+from modules.clrequest import PortalRequest
+from modules.clratio import MatchRatio
 from time import gmtime, strftime
 from bs4 import BeautifulSoup
 
-def get_page(url):
-    #Получение HTML кода страницы
-    page = urlopen(url)
-    return page.read()
-
 class Match(Thread):
-
     def __init__(self, match_url):
         super(Match, self).__init__()
+        self.started_status = False
+        self.finished_status = False
+        self.canceled_status = False
         self.match_url = match_url
-
-    def add_ratio(self, ratio):
-        self.ratio = ratio
-        self.count_ratio()
+        self.portal_request = PortalRequest(self.match_url)
+        self.match_ratio = MatchRatio(self.match_url, self.portal_request)
 
     def create_url(self, team_name, sport): #Создание URL ссылки из названия клуба
         url = 'http://www.oddsportal.com/search/results/'
@@ -44,11 +40,10 @@ class Match(Thread):
         return result
 
     def run(self):
-        soup = BeautifulSoup(get_page(self.match_url), 'lxml')
+        soup = BeautifulSoup(self.portal_request.match_request(), 'lxml')
         content = soup.find(id="col-content")
         div_lc = soup.find(id="breadcrumb")
         a_div_lc = div_lc.find_all('a')
-
         self.sport = a_div_lc[1].get_text() # type of sport
         self.country = a_div_lc[2].get_text() # match of league
         self.league = a_div_lc[3].get_text() # name of league
@@ -57,22 +52,19 @@ class Match(Thread):
             self.result = self.formating_results(self.temp_result)
         except:
             self.result = 'Error or not started yet!'
-
         match_teams = content.find('h1').get_text()
         match_teams = self.formating_teams(match_teams)
-        self.teamHome = match_teams[0].strip() # home team
-        self.teamGuest = match_teams[1].strip() # guest team
-        self.teamHomeURL = self.create_url(self.teamHome, self.sport)
-        self.teamGuestURL = self.create_url(self.teamGuest, self.sport)
+        self.team_home = match_teams[0].strip() # home team
+        self.team_guest = match_teams[1].strip() # guest team
+        self.team_home_url = self.create_url(self.team_home, self.sport)
+        self.team_guest_url = self.create_url(self.team_guest, self.sport)
         self.match_time = gmtime(int(content.find('p')['class'][2][1:11])) # match time
+        self.match_ratio.run()
 
-    def count_ratio(self):
-        self.r1 = self.ratio.count_ratio('1')
-        self.finalRatior1 = self.r1[4]
-        self.r2 = self.ratio.count_ratio('2')
-        self.finalRatior2 = self.r2[4]
 
     def formating_teams(self, teams):
+        #ПЕРЕПИСАТЬ ИСПОЛЬЗУЯ РЕГУЛЯРКИ
+        #!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         match_teams = []
         team_a = []
         team_b = []
@@ -96,7 +88,7 @@ class Match(Thread):
         print('Sport: ', self.sport)
         print('Country: ', self.country)
         print('League: ', self.league)
-        print('Teams: ', self.teamHome, ' - ', self.teamGuest)
+        print('Teams: ', self.team_home, ' - ', self.team_guest)
         print('Time: ', strftime("%b %d %Y %H:%M:%S", self.match_time))
         try:
             print('Temp Result:', self.temp_result)
@@ -106,19 +98,13 @@ class Match(Thread):
         print('URL: ', self.match_url)
 
     def short_show_match(self):
-        print('Teams: ', self.teamHome, ' - ', self.teamGuest)
+        print('Teams: ', self.team_home, ' - ', self.team_guest)
         print('Time: ', strftime("%b %d %Y %H:%M:%S", self.match_time))
         try:
             print('Temp Result:', self.temp_result)
             print('Result:', self.result)
         except:
             print('Result:', self.result)
-
-    def show_ratio(self):
-        print('1:', '[М:', self.r1[0], 'Б:', self.r1[1], 'E:', self.r1[2], 'SUM:', self.r1[3], ']',\
-              '2:', '[М:', self.r2[0], 'Б:', self.r2[1], 'E:', self.r2[2], 'SUM:', self.r2[3], ']')
-        print('1: [' + self.finalRatior1 + '] 2: [' + self.finalRatior2 + ']')
-        #self.ratio.print_ratious()
 
     #def shortShowMatch2(self):
     #    print(self.match_time[2], end='')
