@@ -91,17 +91,18 @@ class Match(Thread):
         print('Teams: ', self.team_home, ' - ', self.team_guest)
         print('Time: ', strftime("%b %d %Y %H:%M:%S", self.match_time))
         try:
-            print('Temp Result:', self.temp_result)
+            print('Result:', self.temp_result)
             print('Result:', self.result)
         except:
             print('Result:', self.result)
         print('URL: ', self.match_url)
+        self.match_ratio.print_ratious()
 
     def short_show_match(self):
         print('Teams: ', self.team_home, ' - ', self.team_guest)
         print('Time: ', strftime("%b %d %Y %H:%M:%S", self.match_time))
         try:
-            print('Temp Result:', self.temp_result)
+            print('Result:', self.temp_result)
             print('Result:', self.result)
         except:
             print('Result:', self.result)

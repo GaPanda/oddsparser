@@ -1,6 +1,6 @@
 #-*- coding: utf-8 -*-
 
-from time import time
+from time import time, gmtime
 from urllib.request import urlopen
 from argparse import ArgumentParser
 from bs4 import BeautifulSoup
@@ -31,100 +31,122 @@ class Process:
 
     def check_for_n_matches(self, tag):
         print("[INFO] Проверка количества матчей в таблице Results.")
-        if(len(tag)) < self.number_of_history_matches:
+        if(len(tag)) > self.number_of_history_matches:
             return True
 
-    def find_matches(self, html): #Поиск 10 предыдущих матчей команды
-        history_matches = []
+    def find_matches(self, html, node_time, array): #Поиск 10 предыдущих матчей команды
         soup = BeautifulSoup(html, 'lxml')
         table_with_matches = soup.find('table', class_='table-main')
         rows = table_with_matches.find_all(self.check_empty_table)
         if self.check_for_n_matches(rows):
-            return False
-        else:
             for i in range(0, self.number_of_history_matches):
                 match_time_td = rows[i].find('td', class_='table-time')
-                match_time = match_time_td['class'][2][1:11]
+                match_time = gmtime(int(match_time_td['class'][2][1:11]))
                 match_link = rows[i].find('td', class_='name table-participant').a.get('href')
-                history_matches.append({
-                    'Time': match_time,
-                    'Link': self.base_url + match_link
-                    })
-        return history_matches
+                if node_time > match_time:
+                    node = Match(self.base_url + match_link)
+                    array.append(node)
+                    node.start()
+        else:
+            raise ValueError
 
-    def find_table_of_history_matches(self, team_url, team_sport, team_country, team_name):
+    def count_teams(self, teams, name, sport):
+        count_similar = 0
+        for team in teams:
+            if team['name'] == name and team['sport'] == sport:
+                count_similar += 1
+        return count_similar
+
+    def find_table_of_history_matches(self, url, sport, country, name, node_time, array):
         teams = []
-        history_matches = []
-        soup = BeautifulSoup(self.get_page(team_url), 'lxml')
+        soup = BeautifulSoup(self.get_page(url), 'lxml')
         table_with_teams = soup.find('table', class_='sortable table-main')
         if self.check_tables_for_teams(table_with_teams):
             rows = table_with_teams.find_all('tr')[1:]
             for row in rows:
                 cols = row.find_all('td')
                 teams.append({
-                    'Team': cols[0].get_text().strip(),
-                    'Link': cols[0].a.get('href').strip(),
-                    'Country': cols[2].get_text().strip(),
-                    'Sport': cols[1].get_text().strip(),
+                    'name': cols[0].get_text().strip(),
+                    'link': cols[0].a.get('href').strip(),
+                    'country': cols[2].get_text().strip(),
+                    'sport': cols[1].get_text().strip(),
                     })
-            for team in teams:
-                if team['Team'] == team_name and team['Country'] == team_country and team['Sport'] == team_sport:
-                    history_matches = self.find_matches(self.get_page(self.base_url + team['Link']))
-                    break
-                else:
-                    raise Exception('No history matches for team:', team_name)
+            num = self.count_teams(teams, name, sport)
+            if num == 1:
+                self.find_matches(self.get_page(self.base_url + teams[0]['link']), node_time, array)
+            elif num > 1:
+                for team in teams:
+                    if team['name'] == name and team['sport'] == sport and team['country'] == country:
+                        self.find_matches(self.get_page(self.base_url + team['link']), node_time, array)
+                        break
+            else:
+                raise ValueError
         else:
-            history_matches = self.find_matches(self.get_page(team_url))
-        return history_matches
+            self.find_matches(self.get_page(url), node_time, array)
 
-    def print_history_matches(self, matches_home_team, matches_guest_team):
-        for i in range(0, self.number_of_history_matches):
-            self.matches_home_team[i].short_show_match2()
-            print(' ', end = '')
-            self.matches_guest_team[i].short_show_match2()
-            print('\n')
+    def print_history_matches(self):
+        i = 1
+        print(u'\n--------------Матчи домашней команды-------------')
+        for key in self.matches_home_team:
+            print(u'\nМатч №{}'.format(i))
+            key.show_match()
+            i += 1
+            #print(' ', end = '')
+        print('\n--------------Матчи гостевой команды-------------')
+        i = 1
+        for key in self.matches_guest_team:
+            print(u'\nМатч №{}'.format(i))
+            key.show_match()
+            i += 1
+
+    def join_threads(self):
+        for key in self.matches_home_team:
+            key.join()
+        for key in self.matches_guest_team:
+            key.join()
 
     def run(self):
         match_node = Match(self.match_url)
-        match_node.run()
-        match_node.show_match()
-        matches_home_team = self.find_table_of_history_matches(match_node.team_home_url,
-                                                               match_node.sport,
-                                                               match_node.country,
-                                                               match_node.team_home)
-        print(matches_home_team)
-        matches_guest_team = self.find_table_of_history_matches(match_node.team_guest_url,
-                                                                match_node.sport,
-                                                                match_node.country,
-                                                                match_node.team_guest)
-
-        if (matches_home_team is not False) & (matches_guest_team is not False):
-            pass
-        else:
-            print("[ERROR] Не найдено", number_of_history_matches, "матчей в таблице Results у одной из команд.")
-
+        try:
+            match_node.run()
+            match_node.show_match()
+            if match_node.sport == "Basketball":
+                self.find_table_of_history_matches(match_node.team_home_url,
+                                                   match_node.sport,
+                                                   match_node.country,
+                                                   match_node.team_home,
+                                                   match_node.match_time,
+                                                   self.matches_home_team)
+                self.find_table_of_history_matches(match_node.team_guest_url,
+                                                   match_node.sport,
+                                                   match_node.country,
+                                                   match_node.team_guest,
+                                                   match_node.match_time,
+                                                   self.matches_guest_team)
+                self.join_threads()
+                if (len(self.matches_home_team) != 0) & (len(self.matches_guest_team) != 0):
+                    print(len(self.matches_home_team))
+                    print(len(self.matches_guest_team))
+                    self.print_history_matches()
+                else:
+                    print("[ERROR] Не найдено матчей у одной из команд.")
+            else:
+                print("[WARNING] Пока что только баскетбол :(")
+        except Exception as err:
+            print('[ERROR] Что-то пошло не так', err)
 
 def main():
-    start_time = time()
     arg_parser = ArgumentParser()
     arg_parser.add_argument("-n", "--number", default=5)
     args = vars(arg_parser.parse_args())
     number_of_history_matches = int(args["number"])
-
     print("[INFO] Количество матчей из истории:", number_of_history_matches)
-
     match_url = input('[INFO] Введите URL матча: ')
-
+    start_time = time()
     process = Process(number_of_history_matches, match_url)
     process.run()
-
     end_time = time() - start_time
-    print('[INFO] Программа завершена за: ', end_time/60, ' мин.')
-    #try:
-    #    print('Finnaly:')
-    #    print_history_matches(matches_home_team, matches_guest_team)
-    #except Exception as err:
-    #    print('[ERROR]', err.args[0])
+    print('[INFO] Программа завершена за: {0:.2f} секунд.'.format(end_time))
 
 if __name__ == '__main__':
     main()
