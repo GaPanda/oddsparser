@@ -32,6 +32,7 @@ class Bookmaker:
 
     def print_bookmaker(self):
         print('Bookmaker: ', self.id_bookmaker)
+        print('Status: ', self.status)
         for key in self.ratious:
             key.print_token()
 

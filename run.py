@@ -24,15 +24,12 @@ class Process:
 
     def check_tables_for_teams(self, tag): #Проверка на наличие таблицы с командами
         print("[INFO] Проверка на наличие таблицы с командами.")
-        if tag != None:
-            return True
-        else:
-            return False
+        if tag != None: return True
+        else: return False
 
     def check_for_n_matches(self, tag):
         print("[INFO] Проверка количества матчей в таблице Results.")
-        if(len(tag)) > self.number_of_history_matches:
-            return True
+        if(len(tag)) > self.number_of_history_matches: return True
 
     def find_matches(self, html, node_time, array): #Поиск 10 предыдущих матчей команды
         soup = BeautifulSoup(html, 'lxml')
@@ -47,8 +44,7 @@ class Process:
                     node = Match(self.base_url + match_link)
                     array.append(node)
                     node.start()
-        else:
-            raise ValueError
+        else: raise ValueError
 
     def count_teams(self, teams, name, sport):
         count_similar = 0
@@ -79,10 +75,8 @@ class Process:
                     if team['name'] == name and team['sport'] == sport and team['country'] == country:
                         self.find_matches(self.get_page(self.base_url + team['link']), node_time, array)
                         break
-            else:
-                raise ValueError
-        else:
-            self.find_matches(self.get_page(url), node_time, array)
+            else: raise ValueError
+        else: self.find_matches(self.get_page(url), node_time, array)
 
     def print_history_matches(self):
         i = 1
@@ -91,7 +85,6 @@ class Process:
             print(u'\nМатч №{}'.format(i))
             key.show_match()
             i += 1
-            #print(' ', end = '')
         print('\n--------------Матчи гостевой команды-------------')
         i = 1
         for key in self.matches_guest_team:
@@ -125,8 +118,6 @@ class Process:
                                                    self.matches_guest_team)
                 self.join_threads()
                 if (len(self.matches_home_team) != 0) & (len(self.matches_guest_team) != 0):
-                    print(len(self.matches_home_team))
-                    print(len(self.matches_guest_team))
                     self.print_history_matches()
                 else:
                     print("[ERROR] Не найдено матчей у одной из команд.")
