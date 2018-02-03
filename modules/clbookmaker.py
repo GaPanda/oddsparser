@@ -1,15 +1,40 @@
+from enum import Enum, unique
+
+@unique
+class Ratio(Enum):
+    HIGHER = "Higher"
+    LOWER = "Lower"
+    EQUAL = "Equal"
+    ERROR = "Error"
+
 class Token:
     def __init__(self, index, token):
         self.index = index
         self.token = token
         self.ratio = []
+        self.counted_ratio = Ratio.ERROR
 
     def add_ratio(self, ratio):
         self.ratio.extend(ratio)
 
+    def count_token(self):
+        self.ratio.sort(key = lambda i: i[2])
+        if len(self.ratio) > 1:
+            self.first = float(self.ratio[0][0])
+            self.last = float(self.ratio[-1][0])
+            if self.first < self.last: self.counted_ratio = Ratio.HIGHER
+            elif self.first > self.last: self.counted_ratio = Ratio.LOWER
+            elif self.first == self.last: self.counted_ratio = Ratio.EQUAL
+            else: self.counted_ratio = Ratio.ERROR
+        else:
+            self.counted_ratio = Ratio.ERROR
+
     def print_token(self):
         print("Index:", self.index)
-        print(self.ratio)
+        print("Ratio:", self.ratio)
+        print("Token:", self.token)
+        print("First:", self.first, "Last:", self.last)
+        print("Counted ratio:", self.counted_ratio)
 
 class Bookmaker:
     def __init__(self, id_bookmaker, status):
@@ -27,6 +52,10 @@ class Bookmaker:
             if key.token == token:
                 key.add_ratio(ratio)
 
+    def count_ratio(self):
+        for key in self.ratious:
+            key.count_token()
+
     def get_id(self):
         return self.id_bookmaker
 
@@ -36,11 +65,5 @@ class Bookmaker:
         for key in self.ratious:
             key.print_token()
 
-    def check_ratio_errors(self):
-        if self.ratio_1 == 'Higher' and self.ratio_2 == 'Higher':
-            return False
-        else:
-            return True
-
-    def return_ratio(self, result):
-        pass
+    def return_ratious(self):
+        return self.ratious

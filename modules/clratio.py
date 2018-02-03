@@ -3,6 +3,7 @@
 import json
 import re
 from modules.clbookmaker import Bookmaker
+from modules.clbookmaker import Ratio
 
 class MatchRatio:
     def __init__(self, match_url, portal_request):
@@ -10,12 +11,32 @@ class MatchRatio:
         self.match_url = match_url
         self.portal_request = portal_request
         self.bookmakers = []
+        self.counted_ratio = []
 
-    def dict_to_list(self, elem):
-        if type(elem).__name__ == "dict":
-            return list(elem.values())
-        else:
-            return elem
+    def dict_to_list(self, key):
+        if type(key).__name__ == "dict": return list(key.values())
+        else: return key
+
+    def add_counted_ratio(self, outcomeid):
+        for token in outcomeid:
+            index = outcomeid.index(token)
+            node = {"index": index,
+                    "token": token,
+                    "result": Ratio.ERROR,
+                    "counts": {
+                        Ratio.HIGHER: 0,
+                        Ratio.LOWER: 0,
+                        Ratio.EQUAL: 0,
+                        Ratio.ERROR: 0,
+                        "total": 0
+                    }}
+            self.counted_ratio.append(node)
+
+    def iter_counted_ratio(self, token, ratio):
+        for key in self.counted_ratio:
+            if key["token"] == token:
+                key["counts"][ratio] += 1
+                key["counts"]["total"] += 1
 
     def run(self): #Нахождение букмекерский контор и их коэффициентов
         json_callback = self.portal_request.ratio_request()
@@ -25,6 +46,7 @@ class MatchRatio:
         back = oddsdata.get('back')
         array = list(back.values())
         outcomeid = self.dict_to_list(array[0].get('OutcomeID'))
+        outcomeid_sorted = sorted(outcomeid)
         odds = array[0].get('odds')
         change_time = array[0].get('change_time')
         history_ratious_2 = []
@@ -34,7 +56,7 @@ class MatchRatio:
             for i in range(0, len(odd)):
                 history_ratious_2.append({"bookmaker": key,
                                           "token": outcomeid[i],
-                                          "ratio": [[str(odd[i]), 0, time[i]]]})
+                                          "ratio": [[odd[i], 0, time[i]]]})
         act = array[0].get('act')
         bookmakers_ids = act.keys()
         for key in bookmakers_ids:
@@ -53,7 +75,10 @@ class MatchRatio:
                                         "token" : key,
                                         "ratio" : ratio})
         history_ratious.extend(history_ratious_2)
+        self.add_counted_ratio(outcomeid_sorted)
         self.ratious(history_ratious, array_tokens)
+        self.count_all_ratio()
+        self.result_counted_ratio()
 
     def ratious(self, history_ratious, array_tokens): #Добавление в класс значений
         for key in self.bookmakers:
@@ -62,27 +87,57 @@ class MatchRatio:
             for x in history_ratious:
                 if x["bookmaker"] == id_b:
                     key.add_ratio(x["token"], x["ratio"])
+            key.count_ratio()
 
-    def count_ratio(self, result): #Подсчет значений
-        procents = 70
-        lower, higher, error = [], [], []
+    def check_ratious_errors(self):
+        if self.ratio_1 == 'Higher' and self.ratio_2 == 'Higher':  return False
+        else: return True
+
+    def count_all_ratio(self): #Подсчет значений
         for key in self.bookmakers:
-            ratio = key.returnRatio(result)
-            if ratio == 'Higher': higher.append(ratio)
-            elif ratio == 'Lower': lower.append(ratio)
-            elif ratio == 'Error': error.append(ratio)
-            else: continue
-        len_lower = len(lower)
-        len_higher = len(higher)
-        if (len_lower / self.len_rows * 100) > procents:
-            final_ratio = 'Lower'
-        elif (len_higher / self.len_rows * 100) > procents:
-            final_ratio = 'Higher'
-        else:
-            final_ratio = 'Error'
-        counts = [len(lower), len(higher), len(error), self.len_rows, final_ratio]
-        return counts
+            array_nodes = key.return_ratious()
+            for array_node in array_nodes:
+                token = array_node.token
+                counted_ratio = array_node.counted_ratio
+                if counted_ratio == Ratio.HIGHER: self.iter_counted_ratio(token, Ratio.HIGHER)
+                elif counted_ratio == Ratio.LOWER: self.iter_counted_ratio(token, Ratio.LOWER)
+                elif counted_ratio == Ratio.EQUAL: self.iter_counted_ratio(token, Ratio.EQUAL)
+                else: self.iter_counted_ratio(token, Ratio.ERROR)
+
+    def result_counted_ratio(self):
+        procents = 60
+        for key in self.counted_ratio:
+            if (key['counts'][Ratio.HIGHER] / key['counts']['total'] * 100) > procents:
+                key['result'] = Ratio.HIGHER
+            elif (key['counts'][Ratio.LOWER] / key['counts']['total'] * 100) > procents:
+                key['result'] = Ratio.LOWER
+            elif (key['counts'][Ratio.EQUAL] / key['counts']['total'] * 100) > procents:
+                key['result'] = Ratio.EQUAL
+            else:
+                key['result'] = Ratio.ERROR
 
     def print_ratious(self):
-        for key in self.bookmakers:
-            key.print_bookmaker()
+        if len(self.counted_ratio) == 2:
+            self.print_ratious_2()
+        elif len(self.counted_ratio) == 3:
+            self.print_ratious_3()
+        #for key in self.bookmakers:
+        #    key.print_bookmaker()
+
+    def print_ratious_2(self):
+        names = ['1:', '2:']
+        i = 0
+        for key in self.counted_ratio:
+            print(names[i], key['result'].value)
+            print('[Higher:', key['counts'][Ratio.HIGHER], "; Lower:", key['counts'][Ratio.LOWER], end=' ')
+            print('; Equal:', key['counts'][Ratio.EQUAL], "; Error:", key['counts'][Ratio.ERROR], "; Total", key['counts']['total'], ']')
+            i += 1
+
+    def print_ratious_3(self):
+        names = ['1:','X:' '2:']
+        i = 0
+        for key in self.counted_ratio:
+            print(names[i], key['result'].value)
+            print('[Higher:', key['counts'][Ratio.HIGHER], "; Lower:", key['counts'][Ratio.LOWER], end=' ')
+            print('; Equal:', key['counts'][Ratio.EQUAL], "; Error:", key['counts'][Ratio.ERROR], "; Total", key['counts']['total'], ']')
+            i += 1

@@ -1,6 +1,6 @@
 #-*- coding: utf-8 -*-
 
-from time import time, gmtime
+from time import time
 from urllib.request import urlopen
 from argparse import ArgumentParser
 from bs4 import BeautifulSoup
@@ -23,28 +23,38 @@ class Process:
         return tag.has_attr('class') and tag.has_attr('xeid') and tag.name == 'tr'
 
     def check_tables_for_teams(self, tag): #Проверка на наличие таблицы с командами
-        print("[INFO] Проверка на наличие таблицы с командами.")
+        print("[INFO] Проверка на наличие таблицы с матчами.")
         if tag != None: return True
         else: return False
 
-    def check_for_n_matches(self, tag):
-        print("[INFO] Проверка количества матчей в таблице Results.")
+    def check_for_n_matches(self, tag, page):
+        print("[INFO] Поиск матчей в истории на странице {}.".format(page))
         if(len(tag)) > self.number_of_history_matches: return True
 
-    def find_matches(self, html, node_time, array): #Поиск 10 предыдущих матчей команды
+    def find_matches(self, url, node_time, array): #Поиск 10 предыдущих матчей команды
+        html = self.get_page(url)
         soup = BeautifulSoup(html, 'lxml')
-        table_with_matches = soup.find('table', class_='table-main')
-        rows = table_with_matches.find_all(self.check_empty_table)
-        if self.check_for_n_matches(rows):
-            for i in range(0, self.number_of_history_matches):
-                match_time_td = rows[i].find('td', class_='table-time')
-                match_time = gmtime(int(match_time_td['class'][2][1:11]))
-                match_link = rows[i].find('td', class_='name table-participant').a.get('href')
-                if node_time > match_time:
-                    node = Match(self.base_url + match_link)
-                    array.append(node)
-                    node.start()
-        else: raise ValueError
+        div_pagination = soup.find('div', id="pagination")
+        last_page = int(div_pagination.find_all('a')[-1].get('x-page'))
+        added_matches = 0
+        page = 1
+        while((added_matches < self.number_of_history_matches) & (page <= last_page)):
+            html = self.get_page(url + '/page/' + str(page))
+            soup = BeautifulSoup(html, 'lxml')
+            table_with_matches = soup.find('table', class_='table-main')
+            rows = table_with_matches.find_all(self.check_empty_table)
+            if self.check_for_n_matches(rows, page):
+                for row in rows:
+                    match_time_td = row.find('td', class_='table-time')
+                    match_time = int(match_time_td['class'][2][1:11])
+                    match_link = row.find('td', class_='name table-participant').a.get('href')
+                    if (node_time > match_time) & (added_matches < self.number_of_history_matches):
+                        node = Match(self.base_url + match_link)
+                        array.append(node)
+                        added_matches += 1
+                        node.start()
+            else: raise ValueError
+            page += 1
 
     def count_teams(self, teams, name, sport):
         count_similar = 0
@@ -69,14 +79,14 @@ class Process:
                     })
             num = self.count_teams(teams, name, sport)
             if num == 1:
-                self.find_matches(self.get_page(self.base_url + teams[0]['link']), node_time, array)
+                self.find_matches(self.base_url + teams[0]['link'], node_time, array)
             elif num > 1:
                 for team in teams:
                     if team['name'] == name and team['sport'] == sport and team['country'] == country:
-                        self.find_matches(self.get_page(self.base_url + team['link']), node_time, array)
+                        self.find_matches(self.base_url + team['link'], node_time, array)
                         break
             else: raise ValueError
-        else: self.find_matches(self.get_page(url), node_time, array)
+        else: self.find_matches(url, node_time, array)
 
     def print_history_matches(self):
         i = 1
@@ -99,8 +109,8 @@ class Process:
             key.join()
 
     def run(self):
-        match_node = Match(self.match_url)
-        try:
+            match_node = Match(self.match_url)
+        #try:
             match_node.run()
             match_node.show_match()
             if match_node.sport == "Basketball":
@@ -123,8 +133,8 @@ class Process:
                     print("[ERROR] Не найдено матчей у одной из команд.")
             else:
                 print("[WARNING] Пока что только баскетбол :(")
-        except Exception as err:
-            print('[ERROR] Что-то пошло не так', err)
+        #except Exception as err:
+        #    print('[ERROR] Что-то пошло не так', err)
 
 def main():
     arg_parser = ArgumentParser()

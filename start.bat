@@ -1,1 +1,1 @@
-python run.py -n 5
+python run.py -n 10

@@ -58,7 +58,7 @@ class Match(Thread):
         self.team_guest = match_teams[1].strip() # guest team
         self.team_home_url = self.create_url(self.team_home, self.sport)
         self.team_guest_url = self.create_url(self.team_guest, self.sport)
-        self.match_time = gmtime(int(content.find('p')['class'][2][1:11])) # match time
+        self.match_time = int(content.find('p')['class'][2][1:11]) # match time
         self.match_ratio.run()
 
 
@@ -89,7 +89,7 @@ class Match(Thread):
         print('Country: ', self.country)
         print('League: ', self.league)
         print('Teams: ', self.team_home, ' - ', self.team_guest)
-        print('Time: ', strftime("%b %d %Y %H:%M:%S", self.match_time))
+        print('Time: ', strftime("%b %d %Y %H:%M:%S", gmtime(self.match_time)))
         try:
             print('Result:', self.temp_result)
             print('Result:', self.result)
@@ -100,18 +100,10 @@ class Match(Thread):
 
     def short_show_match(self):
         print('Teams: ', self.team_home, ' - ', self.team_guest)
-        print('Time: ', strftime("%b %d %Y %H:%M:%S", self.match_time))
+        print('Time: ', strftime("%b %d %Y %H:%M:%S", gmtime(self.match_time)))
         try:
             print('Result:', self.temp_result)
             print('Result:', self.result)
         except:
             print('Result:', self.result)
-
-    #def shortShowMatch2(self):
-    #    print(self.match_time[2], end='')
-    #    if self.result == '1':
-    #        print(self.finalRatior1, end='')
-    #    elif self.result == '2':
-    #        print(self.finalRatior2, end='')
-    #    else:
-    #        print('E', end='')
+        self.match_ratio.print_ratious()
