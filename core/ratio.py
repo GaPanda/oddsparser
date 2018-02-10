@@ -2,14 +2,18 @@
 
 import json
 import re
-from modules.clbookmaker import Bookmaker
-from modules.clbookmaker import Ratio
+from urllib.request import urlopen, unquote, Request
+from threading import Thread
+from core.bookmaker import Bookmaker
+from core.bookmaker import Ratio
 
-class MatchRatio:
-    def __init__(self, match_url, portal_request):
+user_agent = 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/62.0.3202.94 YaBrowser/17.11.1.990 Yowser/2.5 Safari/537.36'
+feed_url = 'http://fb.oddsportal.com/feed/'
+
+class MatchRatio(Thread):
+    def __init__(self, match_url):
         super(MatchRatio, self).__init__()
         self.match_url = match_url
-        self.portal_request = portal_request
         self.bookmakers = []
         self.counted_ratio = []
 
@@ -32,15 +36,46 @@ class MatchRatio:
                     }}
             self.counted_ratio.append(node)
 
+    def add_keys(self, xhash, id_sport, id_match, id_version):
+        self.xhash = xhash
+        self.id_sport = id_sport
+        self.id_match = id_match
+        self.id_version = id_version
+
     def iter_counted_ratio(self, token, ratio):
         for key in self.counted_ratio:
             if key["token"] == token:
                 key["counts"][ratio] += 1
                 key["counts"]["total"] += 1
 
+    def match_data_request(self):
+        request = Request(self.match_url)
+        request.add_header('referer', self.match_url)
+        request.add_header('user-agent', user_agent)
+        html = urlopen(request).read().decode('utf-8')
+        self.xhash = unquote(re.search('"xhash":"(.+?)"', html).group(1))
+        self.id_match = re.search('"id":"(.+?)"', html).group(1)
+        self.id_sport = re.search('"sportId":(.+?)', html).group(1)
+        self.id_version = re.search('"versionId":(.+?)', html).group(1)
+
+
+    def ratio_request(self, xhash, id_sport, id_match, id_version):
+        json_request = Request(feed_url + 'match/{0}-{1}-{2}-3-1-{3}.dat'.format(id_version,
+                                                                                 id_sport,
+                                                                                 id_match,
+                                                                                 xhash))
+        json_request.add_header('referer', self.match_url)
+        json_request.add_header('user-agent', user_agent)
+        value = urlopen(json_request).read().decode('utf-8')
+        return value
+
     def run(self): #Нахождение букмекерский контор и их коэффициентов
-        json_callback = self.portal_request.ratio_request()
-        json_string = re.search('[{](.+)[}]', json_callback).group(0)
+        if self.xhash is None and self.id_sport is None and self.id_match is None and self.id_version is None:
+            self.match_data_request()
+            json_request = self.ratio_request(self.xhash, self.id_sport, self.id_match, self.id_version)
+        else:
+            json_request = self.ratio_request(self.xhash, self.id_sport, self.id_match, self.id_version)
+        json_string = re.search('[{](.+)[}]', json_request).group(0)
         data = json.loads(json_string)
         oddsdata = data.get('d').get('oddsdata')
         back = oddsdata.get('back')
@@ -95,14 +130,17 @@ class MatchRatio:
 
     def count_all_ratio(self): #Подсчет значений
         for key in self.bookmakers:
-            array_nodes = key.return_ratious()
-            for array_node in array_nodes:
-                token = array_node.token
-                counted_ratio = array_node.counted_ratio
-                if counted_ratio == Ratio.HIGHER: self.iter_counted_ratio(token, Ratio.HIGHER)
-                elif counted_ratio == Ratio.LOWER: self.iter_counted_ratio(token, Ratio.LOWER)
-                elif counted_ratio == Ratio.EQUAL: self.iter_counted_ratio(token, Ratio.EQUAL)
-                else: self.iter_counted_ratio(token, Ratio.ERROR)
+            if key.status == True:
+                array_nodes = key.return_ratious()
+                for array_node in array_nodes:
+                    token = array_node.token
+                    counted_ratio = array_node.counted_ratio
+                    if counted_ratio == Ratio.HIGHER: self.iter_counted_ratio(token, Ratio.HIGHER)
+                    elif counted_ratio == Ratio.LOWER: self.iter_counted_ratio(token, Ratio.LOWER)
+                    elif counted_ratio == Ratio.EQUAL: self.iter_counted_ratio(token, Ratio.EQUAL)
+                    else: self.iter_counted_ratio(token, Ratio.ERROR)
+            else:
+                continue
 
     def result_counted_ratio(self):
         procents = 60
