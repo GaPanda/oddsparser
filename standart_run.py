@@ -1,13 +1,14 @@
 #-*- coding: utf-8 -*-
 
 from time import time
+from threading import Thread
 from argparse import ArgumentParser
 from core.match import Match
 from core.ratio import MatchRatio
 from core.result import Result
 from core.history import HistoryMatches
 
-class Process:
+class Process(Thread):
     def __init__(self, number_of_history_matches, match_url):
         super(Process, self).__init__()
         self.match_url = match_url
@@ -76,8 +77,6 @@ class Process:
                     print("[ERROR] Не найдено матчей у одной из команд.")
             else:
                 print("[WARNING] Пока что только баскетбол :(")
-        except urllib.error.URLError:
-            print("[ERROR] Неправильный URL адрес!")
         except UnicodeDecodeError:
             print("[ERROR] Не удается подключиться к oddsportal.")
         except:
@@ -95,7 +94,7 @@ def main(num):
 
 if __name__ == '__main__':
     arg_parser = ArgumentParser()
-    arg_parser.add_argument("-n", "--number", default=5)
+    arg_parser.add_argument("-n", "--number", default = 6)
     args = vars(arg_parser.parse_args())
     num = int(args["number"])
     main(num)
