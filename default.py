@@ -15,7 +15,7 @@ class Process(Thread):
         self.match = None
         self.home_matches = []
         self.guest_matches = []
-        self.count = number_of_history_matches
+        self.number_of_history_matches = number_of_history_matches
 
     def start_threads(self, url):
         node = Match(url)
@@ -37,8 +37,8 @@ class Process(Thread):
         return node
 
     def parse_history_matches(self, node):
-        home_matches = HistoryMatches(self.count, node.sport, node.country, node.team_home, node.match_time)
-        guest_matches = HistoryMatches(self.count, node.sport, node.country, node.team_guest, node.match_time)
+        home_matches = HistoryMatches(self.number_of_history_matches, node.sport, node.country, node.team_home, node.match_time)
+        guest_matches = HistoryMatches(self.number_of_history_matches, node.sport, node.country, node.team_guest, node.match_time)
         home_matches.start()
         guest_matches.start()
         home_matches.join()

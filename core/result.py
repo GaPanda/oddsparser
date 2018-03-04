@@ -58,6 +58,7 @@ class Result(Thread):
         else:
             self.string_result = "Not started yet."
 
+    #Необходимо доделать до ума!!!!!!!
     def formating_results(self, result):
         regex = r"((\d*)[\:](\d*))"
         re_result = re.search(regex, result)
