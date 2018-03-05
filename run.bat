@@ -1,1 +1,1 @@
-python default.py -n 5
+python core\match_process.py -n 5

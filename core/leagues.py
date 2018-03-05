@@ -102,6 +102,9 @@ def start():
             sport.parse_sport()
             sport.parse_leagues()
             sport.count_matches()
+    return sports
 
+'''
 if __name__ == '__main__':
     start()
+'''
