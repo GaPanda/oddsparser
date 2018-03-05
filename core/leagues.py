@@ -89,9 +89,19 @@ class Sport:
             league.print_league()
             print('------------------------------')
 
-def run():
+    def count_matches(self):
+        sum_matches = 0
+        for league in self.leagues:
+            sum_matches += len(league.matches_urls)
+        print('Всего найдено матчей:', sum_matches)
+
+def start():
     sports = parse_sports()
     for sport in sports:
         if sport.sport_name == "Basketball":
             sport.parse_sport()
             sport.parse_leagues()
+            sport.count_matches()
+
+if __name__ == '__main__':
+    start()
