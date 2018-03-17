@@ -12,7 +12,6 @@ class QueueUrl(threading.Thread):
         self.is_parsed = False
         self.is_working = False
         self.number_of_history_matches = 5
-        self.weewq = False
 
     def queue_append(self, value):
         if value not in self.queue:
@@ -77,6 +76,7 @@ def main():
                 time.sleep(60)
             else:
                 time.sleep(60)
+
 
 if __name__ == "__main__":
     main()
