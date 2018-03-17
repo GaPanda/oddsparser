@@ -1,24 +1,31 @@
+# -*- coding: utf-8 -*-
+
+import postgresql
 from urllib.request import urlopen
 from bs4 import BeautifulSoup
 
 URL = "http://www.oddsportal.com"
 
+
 def get_html(url):
     request = urlopen(url)
     return request.read()
 
-def parse_sports(): #Парсинг ссылок для лиг
+
+def parse_sports():
+    '''Парсинг ссылок для лиг'''
     sports = []
     html = get_html(URL)
     soup = BeautifulSoup(html, 'lxml')
-    table = soup.find('ul', id = 'sports-menu')
-    li = table.find_all('li', class_ = 'sport')
+    table = soup.find('ul', id='sports-menu')
+    li = table.find_all('li', class_='sport')
     for key in li:
         sport = key.find('a').get_text()
         sport_link = key.find('a').get('href')
         full_sport_link = URL + sport_link
         sports.append(Sport(sport, full_sport_link))
     return sports
+
 
 class League:
     def __init__(self, league_name, country_name, league_url):
@@ -38,7 +45,7 @@ class League:
             tbody = table.find('tbody')
             tr = tbody.find_all(self.check_tag_match)
             for tr_tag in tr:
-                td = tr_tag.find('td', class_ = 'name table-participant')
+                td = tr_tag.find('td', class_='name table-participant')
                 a = td.find_all('a')
                 match_url = a[-1].get('href').strip()
                 self.matches_urls.append(URL + match_url)
@@ -51,6 +58,7 @@ class League:
         print('League URL:', self.league_url)
         for match_url in self.matches_urls:
             print(match_url)
+
 
 class Sport:
     def __init__(self, sport_name, sport_url):
@@ -95,6 +103,7 @@ class Sport:
             sum_matches += len(league.matches_urls)
         print('Всего найдено матчей:', sum_matches)
 
+
 def start():
     sports = parse_sports()
     for sport in sports:
@@ -103,6 +112,7 @@ def start():
             sport.parse_leagues()
             sport.count_matches()
     return sports
+
 
 '''
 if __name__ == '__main__':

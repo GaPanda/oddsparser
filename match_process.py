@@ -1,4 +1,4 @@
-#-*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 
 from time import time
 from threading import Thread
@@ -7,6 +7,7 @@ from core.match import Match
 from core.ratio import MatchRatio
 from core.result import Result
 from core.history import HistoryMatches
+
 
 class Process(Thread):
     def __init__(self, number_of_history_matches, match_url):
@@ -55,7 +56,7 @@ class Process(Thread):
             i += 1
 
     def run(self):
-        try:
+        #try:
             node = self.start_threads(self.match_url)
             self.match = self.join_threads(node)
             self.match.show_match()
@@ -66,8 +67,10 @@ class Process(Thread):
                     for matches in home.matches_urls, guest.matches_urls:
                         for key in matches:
                             history_node = self.start_threads(key)
-                            if i == 0: self.home_matches.append(history_node)
-                            elif i == 1: self.guest_matches.append(history_node)
+                            if i == 0:
+                                self.home_matches.append(history_node)
+                            elif i == 1:
+                                self.guest_matches.append(history_node)
                         i += 1
                     print('\nМатчи домашней команды:')
                     self.print_history_matches(self.home_matches)
@@ -77,10 +80,11 @@ class Process(Thread):
                     print("[ERROR] Не найдено матчей у одной из команд.")
             else:
                 print("[WARNING] Пока что только баскетбол :(")
-        except UnicodeDecodeError:
-            print("[ERROR] Не удается подключиться к oddsportal.")
-        except:
-            print("[ERROR] Что-то пошло не так")
+        #except UnicodeDecodeError:
+        #    print("[ERROR] Не удается подключиться к oddsportal.")
+        #except:
+        #    print("[ERROR] Что-то пошло не так")
+
 
 def main(num):
     number_of_history_matches = num
@@ -92,9 +96,10 @@ def main(num):
     end_time = time() - start_time
     print('[INFO] Программа завершена за: {0:.2f} секунд.'.format(end_time))
 
+
 if __name__ == '__main__':
     arg_parser = ArgumentParser()
-    arg_parser.add_argument("-n", "--number", default = 6)
+    arg_parser.add_argument("-n", "--number", default=6)
     args = vars(arg_parser.parse_args())
     num = int(args["number"])
     main(num)

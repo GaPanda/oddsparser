@@ -1,11 +1,15 @@
+# -*- coding: utf-8 -*-
+
 import re
 import json
+import logging
 from urllib.request import urlopen, Request, unquote
 from threading import Thread
 from bs4 import BeautifulSoup
 
 user_agent = 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/62.0.3202.94 YaBrowser/17.11.1.990 Yowser/2.5 Safari/537.36'
 feed_url = 'http://fb.oddsportal.com/feed/'
+
 
 class Result(Thread):
     def __init__(self, match_url):
@@ -58,7 +62,7 @@ class Result(Thread):
         else:
             self.string_result = "Not started yet."
 
-    #Необходимо доделать до ума!!!!!!!
+    # Необходимо доделать до ума!!!!!!!
     def formating_results(self, result):
         regex = r"((\d*)[\:](\d*))"
         re_result = re.search(regex, result)
@@ -73,6 +77,9 @@ class Result(Thread):
         else:
             result = 'Error!'
         return result
+
+    def logging_result(self):
+        logging.info("Result:" + str(self.result) + "(" + str(self.string_result) + ")")
 
     def print_result(self):
         print("Result:", self.result, "(" + self.string_result + ")")

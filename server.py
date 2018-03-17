@@ -1,7 +1,8 @@
-import time, datetime
+import time
 import threading
 import core.leagues
 from match_process import Process
+
 
 class QueueUrl(threading.Thread):
     def __init__(self):
@@ -11,6 +12,7 @@ class QueueUrl(threading.Thread):
         self.is_parsed = False
         self.is_working = False
         self.number_of_history_matches = 5
+        self.weewq = False
 
     def queue_append(self, value):
         if value not in self.queue:
@@ -30,7 +32,7 @@ class QueueUrl(threading.Thread):
         self.is_parsed = is_parsed
 
     def print_queue(self):
-        if self.is_working == False:
+        if self.is_working is False:
             print('-----------------------------------------------')
             print('Сегодня:', time.strftime("%a, %d %b %Y %H:%M:%S", time.localtime()))
             print('Размер очереди:', len(self.queue))
@@ -54,12 +56,13 @@ class QueueUrl(threading.Thread):
             else:
                 time.sleep(2)
 
+
 def main():
     queue_url = QueueUrl()
     queue_url.start()
     queue_url.print_queue()
     while True:
-        if time.localtime()[2] != queue_url.today[2] or queue_url.is_parsed == False:
+        if time.localtime()[2] != queue_url.today[2] or queue_url.is_parsed is False:
             sports = core.leagues.start()
             for sport in sports:
                 if len(sport.leagues) != 0:
@@ -68,7 +71,7 @@ def main():
             queue_url.queue_status(True)
             queue_url.queue_last_parsed(time.localtime())
         else:
-            if queue_url.is_working == False:
+            if queue_url.is_working is False:
                 print("Server is waiting for new queue!")
                 queue_url.print_queue()
                 time.sleep(60)

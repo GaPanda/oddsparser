@@ -1,13 +1,16 @@
-#-*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 
 import json
 import re
+import logging
 from urllib.request import urlopen, unquote, Request
 from threading import Thread
 from enum import Enum, unique
+import postgresql
 
 user_agent = 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/62.0.3202.94 YaBrowser/17.11.1.990 Yowser/2.5 Safari/537.36'
 feed_url = 'http://fb.oddsportal.com/feed/'
+
 
 @unique
 class Ratio(Enum):
@@ -15,6 +18,7 @@ class Ratio(Enum):
     LOWER = "Lower"
     EQUAL = "Equal"
     ERROR = "Error"
+
 
 class Token:
     def __init__(self, index, token):
@@ -27,14 +31,18 @@ class Token:
         self.ratio.extend(ratio)
 
     def count_token(self):
-        self.ratio.sort(key = lambda i: i[2])
+        self.ratio.sort(key=lambda i: i[2])
         if len(self.ratio) > 1:
             self.first = float(self.ratio[0][0])
             self.last = float(self.ratio[-1][0])
-            if self.first < self.last: self.counted_ratio = Ratio.HIGHER
-            elif self.first > self.last: self.counted_ratio = Ratio.LOWER
-            elif self.first == self.last: self.counted_ratio = Ratio.EQUAL
-            else: self.counted_ratio = Ratio.ERROR
+            if self.first < self.last:
+                self.counted_ratio = Ratio.HIGHER
+            elif self.first > self.last:
+                self.counted_ratio = Ratio.LOWER
+            elif self.first == self.last:
+                self.counted_ratio = Ratio.EQUAL
+            else:
+                self.counted_ratio = Ratio.ERROR
         else:
             self.counted_ratio = Ratio.ERROR
 
@@ -44,6 +52,7 @@ class Token:
         print("Token:", self.token)
         print("First:", self.first, "Last:", self.last)
         print("Counted ratio:", self.counted_ratio)
+
 
 class Bookmaker:
     def __init__(self, id_bookmaker, status):
@@ -77,6 +86,7 @@ class Bookmaker:
     def return_ratious(self):
         return self.ratious
 
+
 class MatchRatio(Thread):
     def __init__(self, match_url):
         super(MatchRatio, self).__init__()
@@ -85,8 +95,10 @@ class MatchRatio(Thread):
         self.counted_ratio = []
 
     def dict_to_list(self, key):
-        if type(key).__name__ == "dict": return list(key.values())
-        else: return key
+        if type(key).__name__ == "dict":
+            return list(key.values())
+        else:
+            return key
 
     def add_counted_ratio(self, outcomeid):
         for token in outcomeid:
@@ -125,7 +137,6 @@ class MatchRatio(Thread):
         self.id_sport = re.search('"sportId":(.+?)', html).group(1)
         self.id_version = re.search('"versionId":(.+?)', html).group(1)
 
-
     def ratio_request(self, xhash, id_sport, id_match, id_version):
         json_request = Request(feed_url + 'match/{0}-{1}-{2}-3-1-{3}.dat'.format(id_version,
                                                                                  id_sport,
@@ -136,7 +147,8 @@ class MatchRatio(Thread):
         value = urlopen(json_request).read().decode('utf-8')
         return value
 
-    def run(self): #Нахождение букмекерский контор и их коэффициентов
+    def run(self):
+        '''Нахождение букмекерский контор и их коэффициентов'''
         if self.xhash is None and self.id_sport is None and self.id_match is None and self.id_version is None:
             self.match_data_request()
             json_request = self.ratio_request(self.xhash, self.id_sport, self.id_match, self.id_version)
@@ -173,9 +185,9 @@ class MatchRatio(Thread):
             token = history_back.get(key)
             for bkey in token:
                 ratio = token.get(bkey)
-                history_ratious.append({"bookmaker" : bkey,
-                                        "token" : key,
-                                        "ratio" : ratio})
+                history_ratious.append({"bookmaker": bkey,
+                                        "token": key,
+                                        "ratio": ratio})
         history_ratious.extend(history_ratious_2)
         self.add_counted_ratio(outcomeid_sorted)
         self.ratious(history_ratious, array_tokens)
@@ -191,26 +203,30 @@ class MatchRatio(Thread):
                     key.add_ratio(x["token"], x["ratio"])
             key.count_ratio()
 
-    def check_ratious_errors(self):
-        if self.ratio_1 == 'Higher' and self.ratio_2 == 'Higher':  return False
-        else: return True
+    # def check_ratious_errors(self):
+    #    if self.ratio_1 == 'Higher' and self.ratio_2 == 'Higher':  return False
+    #    else: return True
 
-    def count_all_ratio(self): #Подсчет значений
+    def count_all_ratio(self):  # Подсчет значений
         for key in self.bookmakers:
-            if key.status == True:
+            if key.status is True:
                 array_nodes = key.return_ratious()
                 for array_node in array_nodes:
                     token = array_node.token
                     counted_ratio = array_node.counted_ratio
-                    if counted_ratio == Ratio.HIGHER: self.iter_counted_ratio(token, Ratio.HIGHER)
-                    elif counted_ratio == Ratio.LOWER: self.iter_counted_ratio(token, Ratio.LOWER)
-                    elif counted_ratio == Ratio.EQUAL: self.iter_counted_ratio(token, Ratio.EQUAL)
-                    else: self.iter_counted_ratio(token, Ratio.ERROR)
+                    if counted_ratio == Ratio.HIGHER:
+                        self.iter_counted_ratio(token, Ratio.HIGHER)
+                    elif counted_ratio == Ratio.LOWER:
+                        self.iter_counted_ratio(token, Ratio.LOWER)
+                    elif counted_ratio == Ratio.EQUAL:
+                        self.iter_counted_ratio(token, Ratio.EQUAL)
+                    else:
+                        self.iter_counted_ratio(token, Ratio.ERROR)
             else:
                 continue
 
     def result_counted_ratio(self):
-        procents = 60
+        procents = 50
         for key in self.counted_ratio:
             if (key['counts'][Ratio.HIGHER] / key['counts']['total'] * 100) > procents:
                 key['result'] = Ratio.HIGHER
@@ -226,7 +242,7 @@ class MatchRatio(Thread):
             self.print_ratious_2()
         elif len(self.counted_ratio) == 3:
             self.print_ratious_3()
-        #for key in self.bookmakers:
+        # for key in self.bookmakers:
         #    key.print_bookmaker()
 
     def print_ratious_2(self):
@@ -234,12 +250,15 @@ class MatchRatio(Thread):
         i = 0
         for key in self.counted_ratio:
             print(names[i], key['result'].value)
-            print('[Higher:', key['counts'][Ratio.HIGHER], "; Lower:", key['counts'][Ratio.LOWER], end=' ')
-            print('; Equal:', key['counts'][Ratio.EQUAL], "; Error:", key['counts'][Ratio.ERROR], "; Total", key['counts']['total'], ']')
+            print('[Higher:', key['counts'][Ratio.HIGHER], \
+                  "; Lower:", key['counts'][Ratio.LOWER], end=' ')
+            print('; Equal:', key['counts'][Ratio.EQUAL], \
+                  "; Error:", key['counts'][Ratio.ERROR], \
+                  "; Total", key['counts']['total'], ']')
             i += 1
 
     def print_ratious_3(self):
-        names = ['1:','X:' '2:']
+        names = ['1:', 'X:', '2:']
         i = 0
         for key in self.counted_ratio:
             print(names[i], key['result'].value)
