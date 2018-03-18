@@ -1,10 +1,10 @@
 import time
-import threading
+from threading import Thread
 import core.leagues
 from match_process import Process
 
 
-class QueueUrl(threading.Thread):
+class QueueUrl(Thread):
     def __init__(self):
         super(QueueUrl, self).__init__()
         self.queue = []

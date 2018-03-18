@@ -41,10 +41,10 @@ class Process(Thread):
         home_matches = HistoryMatches(self.number_of_history_matches,
                                       node.sport, node.country,
                                       node.team_home, node.match_time)
+        home_matches.start()
         guest_matches = HistoryMatches(self.number_of_history_matches,
                                        node.sport, node.country,
                                        node.team_guest, node.match_time)
-        home_matches.start()
         guest_matches.start()
         home_matches.join()
         guest_matches.join()
@@ -60,7 +60,7 @@ class Process(Thread):
             i += 1
 
     def run(self):
-        # try:
+        try:
             node = self.start_threads(self.match_url)
             self.match = self.join_threads(node)
             self.match.show_match()
@@ -84,10 +84,10 @@ class Process(Thread):
                     print("[ERROR] Не найдено матчей у одной из команд.")
             else:
                 print("[WARNING] Пока что только баскетбол :(")
-        # except UnicodeDecodeError:
-        #    print("[ERROR] Не удается подключиться к oddsportal.")
-        # except:
-        #    print("[ERROR] Что-то пошло не так")
+        except UnicodeDecodeError:
+            print("[ERROR] Не удается подключиться к oddsportal.")
+        except:
+            print("[ERROR] Что-то пошло не так")
 
 
 def main(num):
