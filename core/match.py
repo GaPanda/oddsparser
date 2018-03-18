@@ -15,6 +15,10 @@ class Match(Thread):
         self.match_url = match_url
         self.match_ratio = None
         self.match_result = None
+        self.xhash = None
+        self.id_sport = None
+        self.id_match = None
+        self.id_version = None
 
     def add_data(self, ratio, result):
         self.match_ratio = ratio
@@ -23,24 +27,19 @@ class Match(Thread):
     def return_keys(self):
         return self.xhash, self.id_sport, self.id_match, self.id_version
 
-    '''
-    def match_request(self):
-        request = Request(self.match_url)
-        request.add_header('referer', self.match_url)
-        request.add_header('user-agent', user_agent)
-        return urlopen(request).read().decode('utf-8')
-    '''
-
     def run(self):
         html = core.request.page_request(self.match_url)
+        
         self.xhash = unquote(re.search('"xhash":"(.+?)"', html).group(1))
         self.id_match = re.search('"id":"(.+?)"', html).group(1)
         self.id_sport = re.search('"sportId":(.+?)', html).group(1)
         self.id_version = re.search('"versionId":(.+?)', html).group(1)
+
         soup = BeautifulSoup(html, 'lxml')
         content = soup.find(id="col-content")
         div_lc = soup.find(id="breadcrumb")
         a_div_lc = div_lc.find_all('a')
+
         self.sport = a_div_lc[1].get_text()
         self.country = a_div_lc[2].get_text()
         self.league = a_div_lc[3].get_text()

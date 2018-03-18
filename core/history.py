@@ -65,10 +65,10 @@ class HistoryMatches(Thread):
                 for row in rows:
                     match_time_td = row.find('td', class_='table-time')
                     match_time = int(match_time_td['class'][2][1:11])
-                    match_link = row.find('td', class_='name table-participant').a.get('href')
+                    link_end = row.find('td', class_='name table-participant').a.get('href')
                     if (node_time > match_time) & (added_matches < self.number_of_history_matches):
-                        node = self.base_url + match_link
-                        self.matches_urls.append(node)
+                        match_url = self.base_url + link_end
+                        self.matches_urls.append(match_url)
                         added_matches += 1
             else:
                 break
