@@ -10,17 +10,19 @@ from core.history import HistoryMatches
 
 
 class Process(Thread):
-    def __init__(self, number_of_history_matches, match_url):
+    def __init__(self, number_of_history_matches, ratio_percents, match_url):
         super(Process, self).__init__()
         self.match_url = match_url
+        self.number_of_history_matches = number_of_history_matches
+        self.ratio_percents = ratio_percents
         self.match = None
         self.home_matches = []
         self.guest_matches = []
-        self.number_of_history_matches = number_of_history_matches
+        self.status_end = False
 
     def start_threads(self, url):
         node = Match(url)
-        node_ratio = MatchRatio(url)
+        node_ratio = MatchRatio(url, self.ratio_percents)
         node_result = Result(url)
         node.start()
         node.join()
@@ -76,6 +78,7 @@ class Process(Thread):
                             elif i == 1:
                                 self.guest_matches.append(history_node)
                         i += 1
+                    self.status_end = True
                     print('\nМатчи домашней команды:')
                     self.print_history_matches(self.home_matches)
                     print('\nМатчи гостевой команды:')
@@ -92,10 +95,11 @@ class Process(Thread):
 
 def main(num):
     number_of_history_matches = num
+    ratio_percents = 50
     print("[INFO] Количество матчей из истории:", number_of_history_matches)
     match_url = input('[INFO] Введите URL матча: ')
     start_time = time()
-    process = Process(number_of_history_matches, match_url)
+    process = Process(number_of_history_matches, ratio_percents, match_url)
     process.run()
     end_time = time() - start_time
     print('[INFO] Программа завершена за: {0:.2f} секунд.'.format(end_time))

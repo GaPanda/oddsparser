@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 
 import re
-import postgresql
 import core.request
-from urllib.request import urlopen, unquote, Request
+from urllib.request import unquote
 from threading import Thread
 from time import gmtime, strftime
 from bs4 import BeautifulSoup
@@ -29,7 +28,7 @@ class Match(Thread):
 
     def run(self):
         html = core.request.page_request(self.match_url)
-        
+
         self.xhash = unquote(re.search('"xhash":"(.+?)"', html).group(1))
         self.id_match = re.search('"id":"(.+?)"', html).group(1)
         self.id_sport = re.search('"sportId":(.+?)', html).group(1)

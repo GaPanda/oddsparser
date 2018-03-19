@@ -83,9 +83,10 @@ class Bookmaker:
 
 
 class MatchRatio(Thread):
-    def __init__(self, match_url):
+    def __init__(self, match_url, ratio_percents):
         super(MatchRatio, self).__init__()
         self.match_url = match_url
+        self.ratio_percents = ratio_percents
         self.bookmakers = []
         self.counted_ratio = []
         self.xhash = None
@@ -206,13 +207,12 @@ class MatchRatio(Thread):
                 continue
 
     def result_counted_ratio(self):
-        procents = 50
         for key in self.counted_ratio:
-            if (key['counts'][Ratio.HIGHER] / key['counts']['total'] * 100) > procents:
+            if (key['counts'][Ratio.HIGHER] / key['counts']['total'] * 100) > self.ratio_percents:
                 key['result'] = Ratio.HIGHER
-            elif (key['counts'][Ratio.LOWER] / key['counts']['total'] * 100) > procents:
+            elif (key['counts'][Ratio.LOWER] / key['counts']['total'] * 100) > self.ratio_percents:
                 key['result'] = Ratio.LOWER
-            elif (key['counts'][Ratio.EQUAL] / key['counts']['total'] * 100) > procents:
+            elif (key['counts'][Ratio.EQUAL] / key['counts']['total'] * 100) > self.ratio_percents:
                 key['result'] = Ratio.EQUAL
             else:
                 key['result'] = Ratio.ERROR
