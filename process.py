@@ -26,6 +26,7 @@ class Process(Thread):
         node_result = Result(url)
         node.start()
         node.join()
+        #  Здесь сделать request кодов
         xhash, id_sport, id_match, id_version = node.return_keys()
         node_ratio.add_keys(xhash, id_sport, id_match, id_version)
         node_result.add_keys(xhash, id_sport, id_match)

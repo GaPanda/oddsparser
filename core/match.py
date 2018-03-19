@@ -2,7 +2,6 @@
 
 import re
 import core.request
-from urllib.request import unquote
 from threading import Thread
 from time import gmtime, strftime
 from bs4 import BeautifulSoup
@@ -28,11 +27,6 @@ class Match(Thread):
 
     def run(self):
         html = core.request.page_request(self.match_url)
-
-        self.xhash = unquote(re.search('"xhash":"(.+?)"', html).group(1))
-        self.id_match = re.search('"id":"(.+?)"', html).group(1)
-        self.id_sport = re.search('"sportId":(.+?)', html).group(1)
-        self.id_version = re.search('"versionId":(.+?)', html).group(1)
 
         soup = BeautifulSoup(html, 'lxml')
         content = soup.find(id="col-content")
