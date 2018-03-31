@@ -5,6 +5,7 @@ from urllib.request import unquote
 user_agent = 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) ' \
              'Chrome/62.0.3202.94 YaBrowser/17.11.1.990 Yowser/2.5 Safari/537.36'
 
+
 def page_request(url):
     headers = {'referer': url,
                'user-agent': user_agent}
