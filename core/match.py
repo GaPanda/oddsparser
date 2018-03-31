@@ -11,28 +11,14 @@ class Match(Thread):
     def __init__(self, match_url):
         super(Match, self).__init__()
         self.match_url = match_url
-        self.match_ratio = None
-        self.match_result = None
-        self.xhash = None
-        self.id_sport = None
-        self.id_match = None
-        self.id_version = None
-
-    def add_data(self, ratio, result):
-        self.match_ratio = ratio
-        self.match_result = result
-
-    def return_keys(self):
-        return self.xhash, self.id_sport, self.id_match, self.id_version
 
     def run(self):
         html = core.request.page_request(self.match_url)
-
+        print(html)
         soup = BeautifulSoup(html, 'lxml')
         content = soup.find(id="col-content")
         div_lc = soup.find(id="breadcrumb")
         a_div_lc = div_lc.find_all('a')
-
         self.sport = a_div_lc[1].get_text()
         self.country = a_div_lc[2].get_text()
         self.league = a_div_lc[3].get_text()
@@ -52,5 +38,3 @@ class Match(Thread):
         print('Teams:', self.team_home, ' - ', self.team_guest)
         print('Time:', strftime("%b %d %Y %H:%M:%S", gmtime(self.match_time)))
         print('URL: ', self.match_url)
-        self.match_result.show_result()
-        self.match_ratio.show_ratious()

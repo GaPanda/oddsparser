@@ -3,6 +3,7 @@
 from threading import Thread
 from urllib.request import urlopen
 from bs4 import BeautifulSoup
+from core.struct import MatchStruct
 
 
 def get_page(url):
@@ -11,7 +12,7 @@ def get_page(url):
 
 
 class HistoryMatches(Thread):
-    def __init__(self, number_of_history_matches, sport, country, name, node_time):
+    def __init__(self, number_of_history_matches, ratio_percents, sport, country, name, node_time):
         super(HistoryMatches, self).__init__()
         self.base_url = 'http://www.oddsportal.com'
         self.sport = sport
@@ -20,6 +21,7 @@ class HistoryMatches(Thread):
         self.node_time = node_time
         self.matches_urls = []
         self.number_of_history_matches = number_of_history_matches
+        self.ratio_percents = ratio_percents
 
     def create_url(self, team_name, sport):
         '''Создание URL ссылки из названия клуба'''
@@ -68,7 +70,9 @@ class HistoryMatches(Thread):
                     link_end = row.find('td', class_='name table-participant').a.get('href')
                     if (node_time > match_time) & (added_matches < self.number_of_history_matches):
                         match_url = self.base_url + link_end
-                        self.matches_urls.append(match_url)
+                        node = MatchStruct(match_url, self.ratio_percents)
+                        node.start()
+                        self.matches_urls.append(node)
                         added_matches += 1
             else:
                 break
