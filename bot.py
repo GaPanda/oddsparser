@@ -5,6 +5,7 @@
 import telebot
 import cherrypy
 import config
+import process
 
 WEBHOOK_HOST = config.ip_address
 WEBHOOK_PORT = config.port
@@ -42,7 +43,16 @@ def cmd_start(message):
 
 @bot.message_handler(commands=["match"])
 def cmd_match(message):
-    bot.send_message(message.chat.id, "Отправь мне ссылку на матч с oddsportal, желательно баскетбол).")
+    bot.send_message(message.chat.id, "Отправь мне ссылку на матч с oddsportal, желательно баскетбол).\n \
+                     Пока что-это тест. Тут будет дефолтный матч.")
+    match_url = 'http://www.oddsportal.com/basketball/brazil/nbb/paulistano-bauru-fsrT2vBe/'
+    number = 5
+    percents = 50
+    bot.send_message(message.chat.id, "Количество матчей из истории: {}. \n \
+                     Процент коэффициентов: {}".format(number, percents))
+
+    node = process.Process(number, percents, match_url)
+    bot.send_message(message.chat.id, "{} - {}".format(node.match.team_home, node.team_guest))
 
 
 @bot.message_handler(commands=["close"])
