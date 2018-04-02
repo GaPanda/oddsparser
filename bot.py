@@ -18,7 +18,6 @@ WEBHOOK_URL_PATH = "/%s/" % (config.token)
 
 bot = telebot.TeleBot(config.token)
 
-
 #  Наш вебхук-сервер
 class WebhookServer(object):
     @cherrypy.expose
@@ -36,10 +35,19 @@ class WebhookServer(object):
             raise cherrypy.HTTPError(403)
 
 
-# Хэндлер на все текстовые сообщения
-@bot.message_handler(func=lambda message: True, content_types=['text'])
-def echo_message(message):
-    bot.reply_to(message, message.text)
+@bot.message_handler(commands=["start"])
+def cmd_start(message):
+    bot.send_message(message.chat.id, "Привет. Для начала введи команду /message.")
+
+
+@bot.message_handler(commands=["match"])
+def cmd_match(message):
+    bot.send_message(message.chat.id, "Отправь мне ссылку на матч с oddsportal, желательно баскетбол).")
+
+
+@bot.message_handler(commands=["close"])
+def cmd_reset(message):
+    bot.send_message(message.chat.id, "Пока.")
 
 
 def main():
