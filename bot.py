@@ -52,6 +52,7 @@ def cmd_match(message):
                      Процент коэффициентов: {}".format(number, percents))
 
     node = process.Process(number, percents, match_url)
+    node.run()
     bot.send_message(message.chat.id, "{} - {}".format(node.match.team_home, node.team_guest))
 
 
